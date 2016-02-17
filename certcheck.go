@@ -117,9 +117,25 @@ func printCertInfo(c *x509.Certificate) {
 	}
 	printName("Issuer", c.Issuer)
 	printName("Subject", c.Subject)
-	fmt.Fprintf(os.Stderr, "Serial:    %d\n", c.SerialNumber)
-	fmt.Fprintf(os.Stderr, "NotBefore: %v\n", c.NotBefore)
-	fmt.Fprintf(os.Stderr, "NotAfter:  %v\n", c.NotAfter)
+	fmt.Fprintf(os.Stderr, "Serial:     %d\n", c.SerialNumber)
+	fmt.Fprintf(os.Stderr, "NotBefore:  %v\n", c.NotBefore)
+	fmt.Fprintf(os.Stderr, "NotAfter:   %v\n", c.NotAfter)
+	printSAN(c)
+}
+
+func printSAN(c *x509.Certificate) {
+	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) > 0 {
+		fmt.Fprintf(os.Stderr, "SubjectAlternativeName:\n")
+	}
+	for _, d := range c.DNSNames {
+		fmt.Fprintf(os.Stderr, "- DNS: %s\n", d)
+	}
+	for _, e := range c.EmailAddresses {
+		fmt.Fprintf(os.Stderr, "- Email: %s\n", e)
+	}
+	for _, i := range c.IPAddresses {
+		fmt.Fprintf(os.Stderr, "- IP: %s\n", i.String())
+	}
 }
 
 func printName(title string, n pkix.Name) {
