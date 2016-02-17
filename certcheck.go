@@ -6,6 +6,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/csv"
 	"encoding/pem"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/artyom/autoflags"
@@ -92,11 +94,13 @@ func check(domain, addr string, dur time.Duration) {
 	}
 	now := time.Now()
 	for i, c := range chain {
+		printCertInfo(c)
 		pem := string(pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: c.Raw,
 		}))
 		fmt.Printf("%s", pem)
+		fmt.Fprintf(os.Stderr, "\n")
 
 		if now.Before(c.NotBefore) {
 			fmt.Fprintf(os.Stderr, "%s/%s [%d]: NotBefore is %v\n", domain, addr, i, c.NotBefore)
@@ -104,6 +108,49 @@ func check(domain, addr string, dur time.Duration) {
 		if now.Add(dur).After(c.NotAfter) {
 			fmt.Fprintf(os.Stderr, "%s/%s [%d]: will expire soon (%v)\n", domain, addr, i, c.NotAfter)
 		}
+	}
+}
+
+func printCertInfo(c *x509.Certificate) {
+	if c.IsCA {
+		fmt.Fprintf(os.Stderr, "=== CERTIFICATE AUTHORITY ===\n")
+	}
+	printName("Issuer", c.Issuer)
+	printName("Subject", c.Subject)
+	fmt.Fprintf(os.Stderr, "Serial:    %d\n", c.SerialNumber)
+	fmt.Fprintf(os.Stderr, "NotBefore: %v\n", c.NotBefore)
+	fmt.Fprintf(os.Stderr, "NotAfter:  %v\n", c.NotAfter)
+}
+
+func printName(title string, n pkix.Name) {
+	fmt.Fprintf(os.Stderr, "%s:\n", title)
+
+	if len(n.Country) != 0 {
+		fmt.Fprintf(os.Stderr, "  Country:\t\t%s\n", strings.Join(n.Country, " / "))
+	}
+	if len(n.Organization) != 0 {
+		fmt.Fprintf(os.Stderr, "  Organization:\t\t%s\n", strings.Join(n.Organization, " / "))
+	}
+	if len(n.OrganizationalUnit) != 0 {
+		fmt.Fprintf(os.Stderr, "  OrganizationalUnit:\t%s\n", strings.Join(n.OrganizationalUnit, " / "))
+	}
+	if len(n.Locality) != 0 {
+		fmt.Fprintf(os.Stderr, "  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
+	}
+	if len(n.Province) != 0 {
+		fmt.Fprintf(os.Stderr, "  Province:\t\t%s\n", strings.Join(n.Province, " / "))
+	}
+	if len(n.StreetAddress) != 0 {
+		fmt.Fprintf(os.Stderr, "  StreetAddress:\t%s\n", strings.Join(n.StreetAddress, " / "))
+	}
+	if len(n.PostalCode) != 0 {
+		fmt.Fprintf(os.Stderr, "  PostalCode:\t\t%s\n", strings.Join(n.PostalCode, " / "))
+	}
+	if len(n.SerialNumber) != 0 {
+		fmt.Fprintf(os.Stderr, "  SerialNumber:\t\t%s\n", n.SerialNumber)
+	}
+	if len(n.CommonName) != 0 {
+		fmt.Fprintf(os.Stderr, "  CommonName:\t\t%s\n", n.CommonName)
 	}
 }
 
