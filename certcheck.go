@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/csv"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -91,13 +92,17 @@ func check(domain, addr string, dur time.Duration) {
 	}
 	now := time.Now()
 	for i, c := range chain {
+		pem := string(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: c.Raw,
+		}))
+		fmt.Printf("%s", pem)
+
 		if now.Before(c.NotBefore) {
-			fmt.Printf("%s/%s [%d]: NotBefore is %v\n",
-				domain, addr, i, c.NotBefore)
+			fmt.Fprintf(os.Stderr, "%s/%s [%d]: NotBefore is %v\n", domain, addr, i, c.NotBefore)
 		}
 		if now.Add(dur).After(c.NotAfter) {
-			fmt.Printf("%s/%s [%d]: will expire soon (%v)\n",
-				domain, addr, i, c.NotAfter)
+			fmt.Fprintf(os.Stderr, "%s/%s [%d]: will expire soon (%v)\n", domain, addr, i, c.NotAfter)
 		}
 	}
 }
