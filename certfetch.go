@@ -1,5 +1,4 @@
-// Command certcheck verifies remote certificate chains for some common problems
-// like expiration dates or domain name mismatch.
+// Fetches the entire certificate chain and prints some common info about them
 
 package main
 
@@ -18,35 +17,44 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/artyom/autoflags"
 )
 
+var conf struct {
+	Domain string
+	Addr   string
+	File   string
+	Before time.Duration
+}
+
+func init() {
+	flag.StringVar(&conf.Domain, "domain", "", "use this domain name during TLS handshake")
+	flag.StringVar(&conf.Addr, "addr", "", "host:port to connect to (defaults to domain:443")
+	flag.StringVar(&conf.File, "file", "", "read domain+addr pairs from this CSV file")
+	flag.DurationVar(&conf.Before, "exp", 30*24*time.Hour, "warn if certificate will expire in this period of time")
+	log.SetFlags(0)
+}
+
 func main() {
-	conf := struct {
-		Domain string        `flag:"domain,use this domain name during TLS handshake"`
-		Addr   string        `flag:"addr,host:port to connect to (defaults to domain:443)"`
-		File   string        `flag:"file,read domain+addr pairs from this CSV file"`
-		Before time.Duration `flag:"exp,warn if certificate will expire in this period of time"`
-	}{
-		Before: time.Duration(30*24) * time.Hour,
-	}
-	autoflags.Define(&conf)
 	flag.Parse()
+
 	if conf.File == "" {
 		check(conf.Domain, conf.Addr, conf.Before)
 		return
 	}
+
 	f, err := os.Open(conf.File)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
+
 	rd := csv.NewReader(f)
 	rd.FieldsPerRecord = -1
 	rd.Comment = '#'
 	rd.TrimLeadingSpace = true
+
 	g := newGate(5)
+
 	for {
 		rec, err := rd.Read()
 		if err == io.EOF {
@@ -67,6 +75,7 @@ func main() {
 			log.Print("csv line skipped: invalid number of fields", len(rec))
 		}
 	}
+
 	// by acquiring gate lock as many times as its capacity we make sure
 	// that none other goroutines hold it
 	for i := 0; i < cap(g); i++ {
@@ -79,8 +88,6 @@ type gate chan struct{}
 func newGate(n int) gate { return make(gate, n) }
 func (g gate) Lock()     { g <- struct{}{} }
 func (g gate) Unlock()   { <-g }
-
-func init() { log.SetFlags(0) }
 
 // check prints pretty report
 func check(domain, addr string, dur time.Duration) {
