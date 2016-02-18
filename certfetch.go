@@ -184,7 +184,7 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 		Temporary() bool
 	}
 
-	conf := &tls.Config{ServerName: hostname}
+	conf := &tls.Config{ServerName: hostname, InsecureSkipVerify: true}
 	if addr == "" {
 		addr = hostname + ":443"
 	}
