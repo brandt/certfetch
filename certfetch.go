@@ -41,14 +41,18 @@ func fetch(domain, addr string, dur time.Duration) {
 	if addr == "" {
 		addr = domain + ":443"
 	}
+
 	chain, err := getChain(domain, addr)
 	if err != nil {
 		fmt.Printf("%s/%s: %v\n", domain, addr, err)
 		return
 	}
+
 	now := time.Now()
+
 	for i, c := range chain {
 		printCertInfo(c)
+
 		pem := string(pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: c.Raw,
@@ -59,6 +63,7 @@ func fetch(domain, addr string, dur time.Duration) {
 		if now.Before(c.NotBefore) {
 			fmt.Fprintf(os.Stderr, "%s/%s [%d]: NotBefore is %v\n", domain, addr, i, c.NotBefore)
 		}
+
 		if now.Add(dur).After(c.NotAfter) {
 			fmt.Fprintf(os.Stderr, "%s/%s [%d]: will expire soon (%v)\n", domain, addr, i, c.NotAfter)
 		}
@@ -131,24 +136,30 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 	if hostname == "" {
 		return nil, errors.New("empty hostname")
 	}
+
 	var (
 		conn *tls.Conn
 		err  error
 	)
+
 	type tempErr interface {
 		Temporary() bool
 	}
+
 	conf := &tls.Config{ServerName: hostname}
 	if addr == "" {
 		addr = hostname + ":443"
 	}
+
 	dialer := &net.Dialer{
 		Timeout: 30 * time.Second,
 	}
+
 	for i := 0; i < 3; i++ {
 		if i > 0 {
 			time.Sleep(time.Duration(i) * time.Second)
 		}
+
 		conn, err = tls.DialWithDialer(dialer, "tcp", addr, conf)
 		if e, ok := err.(tempErr); ok && e.Temporary() {
 			continue
@@ -157,7 +168,9 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 			return nil, err
 		}
 		defer conn.Close()
+
 		return conn.ConnectionState().PeerCertificates, nil
 	}
+
 	return nil, err
 }
