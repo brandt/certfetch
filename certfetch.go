@@ -106,6 +106,14 @@ func fetch(domain, addr string, dur time.Duration) {
 			fmt.Fprintf(os.Stderr, "%s/%s [%d]: will expire soon (%v)\n", domain, addr, i, c.NotAfter)
 		}
 	}
+
+	res := Verify(domain, chain)
+	if res == nil {
+		fmt.Fprintf(os.Stderr, "Verify PASSED\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "Verify FAILED! Here's why: %s\n", res)
+		os.Exit(4)
+	}
 }
 
 func printCertInfo(c *x509.Certificate) {
