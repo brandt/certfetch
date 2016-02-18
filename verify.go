@@ -15,6 +15,14 @@ func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 
 	opts := x509.VerifyOptions{DNSName: dnsName}
 
+	if cafile != "" {
+		roots, err := readCAfile(cafile)
+		if err != nil {
+			return err
+		}
+		opts.Roots = roots
+	}
+
 	// Cert Pool for intermediates
 	intermediatesPool := x509.NewCertPool()
 	var leaf *x509.Certificate
@@ -38,10 +46,6 @@ func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 
 	opts.Intermediates = intermediatesPool
 
-	if cafile != "" {
-		opts.Roots = readCAfile(cafile)
-	}
-
 	chains, err := leaf.Verify(opts)
 	if len(chains) == 0 || err != nil {
 		return fmt.Errorf("certificate verification failed: %v", err)
@@ -49,18 +53,18 @@ func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 	return nil
 }
 
-func readCAfile(path string) *x509.CertPool {
+func readCAfile(path string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error reading CA file: %v", err)
 	}
 
 	ok := pool.AppendCertsFromPEM([]byte(raw))
 	if !ok {
-		panic(ok)
+		return nil, fmt.Errorf("error parsing CA file certificates: %v", ok)
 	}
 
-	return pool
+	return pool, nil
 }
