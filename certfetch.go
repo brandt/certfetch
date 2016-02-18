@@ -23,11 +23,13 @@ var conf struct {
 	Domain string
 	Addr   string
 	File   string
+	CAfile string
 	Before time.Duration
 }
 
 func init() {
 	flag.StringVar(&conf.Domain, "domain", "", "specify different domain used during TLS handshake")
+	flag.StringVar(&conf.CAfile, "cafile", "", "path to a CA file (PEM) to verify with instead of the default root certs")
 	flag.DurationVar(&conf.Before, "exp", 30*24*time.Hour, "warn if certificate will expire in this period of time")
 	log.SetFlags(0)
 }
@@ -44,7 +46,7 @@ func main() {
 	}
 	hostport := parseURL(flag.Args()[0])
 
-	fetch(conf.Domain, hostport, conf.Before)
+	fetch(conf.Domain, hostport, conf.CAfile, conf.Before)
 }
 
 func parseURL(arg string) string {
@@ -74,7 +76,7 @@ func parseURL(arg string) string {
 }
 
 // fetch prints pretty report
-func fetch(domain, addr string, dur time.Duration) {
+func fetch(domain, addr, cafile string, dur time.Duration) {
 	if domain == "" {
 		h := strings.Split(addr, ":")
 		domain = h[0]
@@ -107,7 +109,7 @@ func fetch(domain, addr string, dur time.Duration) {
 		}
 	}
 
-	res := Verify(domain, chain)
+	res := Verify(domain, chain, cafile)
 	if res == nil {
 		fmt.Fprintf(os.Stderr, "Verify PASSED\n")
 	} else {

@@ -4,10 +4,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 )
 
 // Validates a certificate chain
-func Verify(dnsName string, chain []*x509.Certificate) error {
+func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 	if len(chain) == 0 {
 		return errors.New("no certificates provided")
 	}
@@ -37,9 +38,29 @@ func Verify(dnsName string, chain []*x509.Certificate) error {
 
 	opts.Intermediates = intermediatesPool
 
+	if cafile != "" {
+		opts.Roots = readCAfile(cafile)
+	}
+
 	chains, err := leaf.Verify(opts)
 	if len(chains) == 0 || err != nil {
 		return fmt.Errorf("certificate verification failed: %v", err)
 	}
 	return nil
+}
+
+func readCAfile(path string) *x509.CertPool {
+	pool := x509.NewCertPool()
+
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	ok := pool.AppendCertsFromPEM([]byte(raw))
+	if !ok {
+		panic(ok)
+	}
+
+	return pool
 }
