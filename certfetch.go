@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -25,21 +27,57 @@ var conf struct {
 }
 
 func init() {
-	flag.StringVar(&conf.Domain, "domain", "", "use this domain name during TLS handshake")
-	flag.StringVar(&conf.Addr, "addr", "", "host:port to connect to (defaults to domain:443")
+	flag.StringVar(&conf.Domain, "domain", "", "specify different domain used during TLS handshake")
 	flag.DurationVar(&conf.Before, "exp", 30*24*time.Hour, "warn if certificate will expire in this period of time")
 	log.SetFlags(0)
 }
 
 func main() {
 	flag.Parse()
-	fetch(conf.Domain, conf.Addr, conf.Before)
+
+	if flag.NArg() < 1 {
+		fmt.Println("No host specified")
+		os.Exit(2)
+	} else if flag.NArg() > 1 {
+		fmt.Println("Too many arguments")
+		os.Exit(2)
+	}
+	hostport := parseURL(flag.Args()[0])
+
+	fetch(conf.Domain, hostport, conf.Before)
+}
+
+func parseURL(arg string) string {
+	var hostport string
+
+	if strings.Contains(arg, "//") {
+		u, err := url.Parse(arg)
+		if err != nil {
+			panic(err)
+		}
+		hostport = u.Host
+	} else {
+		hostport = arg
+	}
+
+	if !strings.Contains(hostport, ":") {
+		hostport = hostport + ":443"
+	}
+
+	r, _ := regexp.Compile(`[-_a-zA-Z0-9.]+:[0-9]+`)
+	if !r.MatchString(hostport) {
+		fmt.Println("Invalid hostport")
+		os.Exit(2)
+	}
+
+	return hostport
 }
 
 // fetch prints pretty report
 func fetch(domain, addr string, dur time.Duration) {
-	if addr == "" {
-		addr = domain + ":443"
+	if domain == "" {
+		h := strings.Split(addr, ":")
+		domain = h[0]
 	}
 
 	chain, err := getChain(domain, addr)
