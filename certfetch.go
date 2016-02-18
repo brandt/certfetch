@@ -6,12 +6,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/csv"
 	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -29,68 +27,17 @@ var conf struct {
 func init() {
 	flag.StringVar(&conf.Domain, "domain", "", "use this domain name during TLS handshake")
 	flag.StringVar(&conf.Addr, "addr", "", "host:port to connect to (defaults to domain:443")
-	flag.StringVar(&conf.File, "file", "", "read domain+addr pairs from this CSV file")
 	flag.DurationVar(&conf.Before, "exp", 30*24*time.Hour, "warn if certificate will expire in this period of time")
 	log.SetFlags(0)
 }
 
 func main() {
 	flag.Parse()
-
-	if conf.File == "" {
-		check(conf.Domain, conf.Addr, conf.Before)
-		return
-	}
-
-	f, err := os.Open(conf.File)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	rd := csv.NewReader(f)
-	rd.FieldsPerRecord = -1
-	rd.Comment = '#'
-	rd.TrimLeadingSpace = true
-
-	g := newGate(5)
-
-	for {
-		rec, err := rd.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Print(err)
-			break
-		}
-		switch len(rec) {
-		case 1:
-			g.Lock()
-			go func(d string) { check(d, "", conf.Before); g.Unlock() }(rec[0])
-		case 2:
-			g.Lock()
-			go func(d, a string) { check(d, a, conf.Before); g.Unlock() }(rec[0], rec[1])
-		default:
-			log.Print("csv line skipped: invalid number of fields", len(rec))
-		}
-	}
-
-	// by acquiring gate lock as many times as its capacity we make sure
-	// that none other goroutines hold it
-	for i := 0; i < cap(g); i++ {
-		g.Lock()
-	}
+	fetch(conf.Domain, conf.Addr, conf.Before)
 }
 
-type gate chan struct{}
-
-func newGate(n int) gate { return make(gate, n) }
-func (g gate) Lock()     { g <- struct{}{} }
-func (g gate) Unlock()   { <-g }
-
-// check prints pretty report
-func check(domain, addr string, dur time.Duration) {
+// fetch prints pretty report
+func fetch(domain, addr string, dur time.Duration) {
 	if addr == "" {
 		addr = domain + ":443"
 	}
