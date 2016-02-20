@@ -26,30 +26,20 @@ func printCerts(chain []*x509.Certificate) {
 		}
 
 		printName("Subject", c.Subject)
-
-		printNewline()
-
 		printName("Issuer", c.Issuer)
 
-		printNewline()
-
 		printValidityPeriod(c)
-
-		printNewline()
 
 		printStderr("Serial: %d\n", c.SerialNumber)
 		printStderr("Version: %d\n", c.Version)
 		printSignatureInfo(c)
-
 		printNewline()
 
 		printPubKeyInfo(c)
 
-		printNewline()
-
 		printSAN(c)
 
-		printNewline()
+		printExtKeyUsage(c)
 
 		printPEM(c)
 
@@ -60,11 +50,23 @@ func printCerts(chain []*x509.Certificate) {
 }
 
 func printSeparator() {
-	printStderr("\n---------------------------------------------------------\n")
+	// printStderr("\n=========================\n")
+	printStderr("\n\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\n")
 }
 
 func printNewline() {
 	printStderr("\n")
+}
+
+func printExtKeyUsage(c *x509.Certificate) {
+	usage := c.ExtKeyUsage
+	if len(usage) > 0 {
+		printStderr("Extension: Key Usage\n")
+		for _, u := range usage {
+			printStderr("  - %s\n", ExtKeyUsage(u).String())
+		}
+		printNewline()
+	}
 }
 
 func printValidityPeriod(c *x509.Certificate) {
@@ -75,6 +77,7 @@ func printValidityPeriod(c *x509.Certificate) {
 	printStderr("Validity Period:\n")
 	printStderr("  Not Before:  %s\n", c.NotBefore.Local().String())
 	printStderr("  Not After:   %s\n", expiration)
+	printNewline()
 }
 
 type KeyUsage x509.KeyUsage
@@ -110,6 +113,38 @@ func (a KeyUsage) Split() (s []string) {
 		s = append(s, "Decipher Only")
 	}
 	return s
+}
+
+type ExtKeyUsage x509.ExtKeyUsage
+
+func (a ExtKeyUsage) String() string {
+	switch x509.ExtKeyUsage(a) {
+	case x509.ExtKeyUsageAny:
+		return "Any"
+	case x509.ExtKeyUsageServerAuth:
+		return "Server Auth"
+	case x509.ExtKeyUsageClientAuth:
+		return "Client Auth"
+	case x509.ExtKeyUsageCodeSigning:
+		return "Code Signing"
+	case x509.ExtKeyUsageEmailProtection:
+		return "Email Protection"
+	case x509.ExtKeyUsageIPSECEndSystem:
+		return "IPSEC End System"
+	case x509.ExtKeyUsageIPSECTunnel:
+		return "IPSEC Tunnel"
+	case x509.ExtKeyUsageIPSECUser:
+		return "IPSEC User"
+	case x509.ExtKeyUsageTimeStamping:
+		return "Time Stamping"
+	case x509.ExtKeyUsageOCSPSigning:
+		return "OCSP Signing"
+	case x509.ExtKeyUsageMicrosoftServerGatedCrypto:
+		return "Microsoft Server Gated Crypto"
+	case x509.ExtKeyUsageNetscapeServerGatedCrypto:
+		return "Netscape Server Gated Crypto"
+	}
+	return "Unknown"
 }
 
 type SignatureAlgorithm x509.SignatureAlgorithm
@@ -191,6 +226,8 @@ func printPubKeyInfo(c *x509.Certificate) {
 			printStderr("    - %s\n", u)
 		}
 	}
+
+	printNewline()
 }
 
 func printSignatureInfo(c *x509.Certificate) {
@@ -211,7 +248,7 @@ func printSAN(c *x509.Certificate) {
 	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) == 0 {
 		return
 	}
-	printStderr("SubjectAlternativeName:\n")
+	printStderr("Extension: Subject Alternative Name\n")
 	for _, d := range c.DNSNames {
 		printStderr("  - DNS: %s\n", d)
 	}
@@ -221,6 +258,7 @@ func printSAN(c *x509.Certificate) {
 	for _, i := range c.IPAddresses {
 		printStderr("  - IP: %s\n", i.String())
 	}
+	printNewline()
 }
 
 func printName(title string, n pkix.Name) {
@@ -253,4 +291,6 @@ func printName(title string, n pkix.Name) {
 	if len(n.SerialNumber) != 0 {
 		printStderr("  Serial Number:        %s\n", n.SerialNumber)
 	}
+
+	printNewline()
 }
