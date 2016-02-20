@@ -230,6 +230,7 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 
 		conn, err = tls.DialWithDialer(dialer, "tcp", addr, conf)
 		if e, ok := err.(tempErr); ok && e.Temporary() {
+			printStderr("Connection attempt failed: %s\n", addr)
 			continue
 		}
 		if err != nil {
