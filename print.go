@@ -13,12 +13,12 @@ func printStderr(fmtstr string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, fmtstr, a...)
 }
 
-func printPEM(c *x509.Certificate) {
-	pem := string(pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: c.Raw,
-	}))
-	fmt.Printf("%s", pem)
+func printCerts(chain []*x509.Certificate) {
+	for _, c := range chain {
+		printCertInfo(c)
+		printPEM(c)
+		printStderr("\n")
+	}
 }
 
 func printCertInfo(c *x509.Certificate) {
@@ -31,6 +31,14 @@ func printCertInfo(c *x509.Certificate) {
 	printStderr("NotBefore:  %v\n", c.NotBefore)
 	printStderr("NotAfter:   %v\n", c.NotAfter)
 	printSAN(c)
+}
+
+func printPEM(c *x509.Certificate) {
+	pem := string(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: c.Raw,
+	}))
+	fmt.Printf("%s", pem)
 }
 
 func printSAN(c *x509.Certificate) {

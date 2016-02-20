@@ -33,9 +33,6 @@ func init() {
 }
 
 func main() {
-	var expirationWarnings []string
-	now := time.Now()
-
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -51,6 +48,8 @@ func main() {
 		printStderr("ERROR: Problem parsing URL: %v\n", err)
 		os.Exit(2)
 	}
+
+	// Domain provided via CLI argument overrides default
 	if conf.Domain != "" {
 		target.domain = conf.Domain
 	}
@@ -61,36 +60,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, c := range chain {
-		printCertInfo(c)
-		printPEM(c)
-		printStderr("\n")
-
-		if now.Before(c.NotBefore) {
-			bw := fmt.Sprintf("WARNING: %s is not valid until %v", target.domain, c.NotBefore)
-			expirationWarnings = append(expirationWarnings, bw)
-		}
-
-		if now.Add(conf.Before).After(c.NotAfter) {
-			aw := fmt.Sprintf("WARNING: %s will expire on %v", target.domain, c.NotAfter)
-			expirationWarnings = append(expirationWarnings, aw)
-		}
-	}
-
-	for _, w := range expirationWarnings {
-		printStderr("%s\n", w)
-	}
-	if len(expirationWarnings) != 0 {
-		printStderr("\n")
-	}
+	printCerts(chain)
+	checkDates(chain)
 
 	res := Verify(target.domain, chain, conf.CAfile)
 	if res != nil {
 		printStderr("Verify FAILED! Here's why: %s\n", res)
 		os.Exit(4)
 	}
-
 	printStderr("Verify PASSED\n")
+}
+
+func checkDates(chain []*x509.Certificate) {
+	now := time.Now()
+
+	for i, c := range chain {
+		if now.Before(c.NotBefore) {
+			printStderr("WARNING: Certificate %d is not valid until %v\n", i, c.NotBefore)
+		}
+
+		if now.After(c.NotAfter) {
+			printStderr("WARNING: Certificate %d expired on %v\n", i, c.NotAfter)
+		} else if now.Add(conf.Before).After(c.NotAfter) {
+			printStderr("WARNING: Certificate %d will expire on %v\n", i, c.NotAfter)
+		}
+	}
 }
 
 // getChain returns chain of certificates retrieved from TLS session
