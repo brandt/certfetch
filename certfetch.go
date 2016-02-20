@@ -14,10 +14,13 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
+
+type Host struct {
+	domain, addr, port string
+}
 
 var conf struct {
 	Domain string
@@ -44,12 +47,15 @@ func main() {
 		fmt.Println("Too many arguments")
 		os.Exit(2)
 	}
-	hostport := parseURL(flag.Args()[0])
+	target := parseURL(flag.Args()[0])
+	if conf.Domain != "" {
+		target.domain = conf.Domain
+	}
 
-	fetch(conf.Domain, hostport, conf.CAfile, conf.Before)
+	fetch(conf.Domain, target, conf.CAfile, conf.Before)
 }
 
-func parseURL(arg string) string {
+func parseURL(arg string) (h Host) {
 	var hostport string
 
 	if strings.Contains(arg, "//") {
@@ -62,31 +68,42 @@ func parseURL(arg string) string {
 		hostport = arg
 	}
 
-	if !strings.Contains(hostport, ":") {
-		hostport = hostport + ":443"
-	}
-
-	r, _ := regexp.Compile(`[-_a-zA-Z0-9.]+:[0-9]+`)
-	if !r.MatchString(hostport) {
-		fmt.Println("Invalid hostport")
+	host, port, err := parseHostport(hostport)
+	if err != nil {
+		printStderr("Invalid hostport: %s", hostport)
 		os.Exit(2)
 	}
+	h.domain = host
+	h.addr = host
+	h.port = port
 
-	return hostport
+	return h
+}
+
+func (h Host) Hostport() (string, error) {
+	port := "443"
+	if h.port != "" {
+		port = h.port
+	}
+	if h.addr == "" {
+		return "", errors.New("address empty")
+	}
+	hostport := h.addr + ":" + port
+	return hostport, nil
 }
 
 // fetch prints pretty report
-func fetch(domain, addr, cafile string, dur time.Duration) {
+func fetch(domain string, h Host, cafile string, dur time.Duration) {
 	var expirationWarnings []string
 
-	if domain == "" {
-		h := strings.Split(addr, ":")
-		domain = h[0]
+	hostport, err := h.Hostport()
+	if err != nil {
+		printStderr("ERROR: Problem with hostport: %s\n", err)
 	}
 
-	chain, err := getChain(domain, addr)
+	chain, err := getChain(h.domain, hostport)
 	if err != nil {
-		printStderr("ERROR: %s/%s: %v\n", domain, addr, err)
+		printStderr("ERROR: %s/%s: %v\n", h.domain, hostport, err)
 		os.Exit(1)
 	}
 
@@ -98,12 +115,12 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 		printStderr("\n")
 
 		if now.Before(c.NotBefore) {
-			bw := fmt.Sprintf("WARNING: %s is not valid until %v", domain, c.NotBefore)
+			bw := fmt.Sprintf("WARNING: %s is not valid until %v", h.domain, c.NotBefore)
 			expirationWarnings = append(expirationWarnings, bw)
 		}
 
 		if now.Add(dur).After(c.NotAfter) {
-			aw := fmt.Sprintf("WARNING: %s will expire on %v", domain, c.NotAfter)
+			aw := fmt.Sprintf("WARNING: %s will expire on %v", h.domain, c.NotAfter)
 			expirationWarnings = append(expirationWarnings, aw)
 		}
 	}
@@ -115,13 +132,69 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 		printStderr("\n")
 	}
 
-	res := Verify(domain, chain, cafile)
+	res := Verify(h.domain, chain, cafile)
 	if res != nil {
 		printStderr("Verify FAILED! Here's why: %s\n", res)
 		os.Exit(4)
 	}
 
 	printStderr("Verify PASSED\n")
+}
+
+// getChain returns chain of certificates retrieved from TLS session
+// established at given addr (host:port) for hostname provided. If addr is
+// empty, then hostname:443 is used.
+func getChain(hostname, addr string) ([]*x509.Certificate, error) {
+	var (
+		conn *tls.Conn
+		err  error
+	)
+
+	type tempErr interface {
+		Temporary() bool
+	}
+
+	if hostname == "" {
+		return nil, errors.New("empty hostname")
+	}
+
+	conf := &tls.Config{ServerName: hostname, InsecureSkipVerify: true}
+
+	dialer := &net.Dialer{
+		Timeout: 30 * time.Second,
+	}
+
+	// attempt to establish connection 3 times
+	for i := 0; i < 3; i++ {
+		if i > 0 {
+			time.Sleep(time.Duration(i) * time.Second)
+		}
+
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, conf)
+		if e, ok := err.(tempErr); ok && e.Temporary() {
+			printStderr("Connection attempt failed: %s\n", addr)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+
+		return conn.ConnectionState().PeerCertificates, nil
+	}
+
+	return nil, err
+}
+
+func parseHostport(hostport string) (host, port string, err error) {
+	if strings.Contains(hostport, "]") || strings.Count(hostport, ":") == 1 {
+		host, port, err = net.SplitHostPort(hostport)
+		if err != nil {
+			return host, port, err
+		}
+		return host, port, nil
+	}
+	return hostport, "", nil
 }
 
 func printStderr(fmtstr string, a ...interface{}) {
@@ -194,52 +267,4 @@ func printName(title string, n pkix.Name) {
 	if len(n.CommonName) != 0 {
 		printStderr("  CommonName:\t\t%s\n", n.CommonName)
 	}
-}
-
-// getChain returns chain of certificates retrieved from TLS session
-// established at given addr (host:port) for hostname provided. If addr is
-// empty, then hostname:443 is used.
-func getChain(hostname, addr string) ([]*x509.Certificate, error) {
-	var (
-		conn *tls.Conn
-		err  error
-	)
-
-	type tempErr interface {
-		Temporary() bool
-	}
-
-	if hostname == "" {
-		return nil, errors.New("empty hostname")
-	}
-
-	conf := &tls.Config{ServerName: hostname, InsecureSkipVerify: true}
-	if addr == "" {
-		addr = hostname + ":443"
-	}
-
-	dialer := &net.Dialer{
-		Timeout: 30 * time.Second,
-	}
-
-	// attempt to establish connection 3 times
-	for i := 0; i < 3; i++ {
-		if i > 0 {
-			time.Sleep(time.Duration(i) * time.Second)
-		}
-
-		conn, err = tls.DialWithDialer(dialer, "tcp", addr, conf)
-		if e, ok := err.(tempErr); ok && e.Temporary() {
-			printStderr("Connection attempt failed: %s\n", addr)
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
-
-		return conn.ConnectionState().PeerCertificates, nil
-	}
-
-	return nil, err
 }
