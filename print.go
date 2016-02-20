@@ -19,28 +19,24 @@ func printStderr(fmtstr string, a ...interface{}) {
 
 func printCerts(chain []*x509.Certificate) {
 	for _, c := range chain {
-		printCertInfo(c)
+		if c.IsCA {
+			printStderr("=== CERTIFICATE AUTHORITY ===\n")
+		}
+		printName("Subject", c.Subject)
+		printName("Issuer", c.Issuer)
+
+		printValidityPeriod(c)
+
+		printStderr("Serial#: %d\n", c.SerialNumber)
+		printStderr("Version: %d\n", c.Version)
+		printSignatureInfo(c)
+
+		printPubKeyInfo(c)
+
+		printSAN(c)
 		printPEM(c)
 		printStderr("\n")
 	}
-}
-
-func printCertInfo(c *x509.Certificate) {
-	if c.IsCA {
-		printStderr("=== CERTIFICATE AUTHORITY ===\n")
-	}
-	printName("Subject", c.Subject)
-	printName("Issuer", c.Issuer)
-
-	printValidityPeriod(c)
-
-	printStderr("Serial#: %d\n", c.SerialNumber)
-	printStderr("Version: %d\n", c.Version)
-	printSignatureInfo(c)
-
-	printPubKeyInfo(c)
-
-	printSAN(c)
 }
 
 func printValidityPeriod(c *x509.Certificate) {
