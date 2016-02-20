@@ -44,8 +44,9 @@ func printValidityPeriod(c *x509.Certificate) {
 	if time.Now().After(c.NotAfter) {
 		expiration = expiration + " (EXPIRED)"
 	}
-	printStderr("NotValidBefore: %s\n", c.NotBefore.Local().String())
-	printStderr("NotValidAfter:  %s\n", expiration)
+	printStderr("ValidityPeriod:\n")
+	printStderr("  NotBefore: %s\n", c.NotBefore.Local().String())
+	printStderr("  NotAfter:  %s\n", expiration)
 }
 
 type KeyUsage x509.KeyUsage
