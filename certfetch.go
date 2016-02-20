@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -52,11 +53,12 @@ func main() {
 		target.domain = conf.Domain
 	}
 
-	fetch(conf.Domain, target, conf.CAfile, conf.Before)
+	fetch(target, conf.CAfile, conf.Before)
 }
 
 func parseURL(arg string) (h Host) {
 	var hostport string
+	domainRegex := "^([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9])([.]([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9]))*[.]?$"
 
 	if strings.Contains(arg, "//") {
 		u, err := url.Parse(arg)
@@ -73,7 +75,14 @@ func parseURL(arg string) (h Host) {
 		printStderr("Invalid hostport: %s", hostport)
 		os.Exit(2)
 	}
-	h.domain = host
+
+	res, _ := regexp.MatchString(domainRegex, host)
+	if res {
+		h.domain = host
+	} else {
+		h.domain = ""
+	}
+
 	h.addr = host
 	h.port = port
 
@@ -93,17 +102,12 @@ func (h Host) Hostport() (string, error) {
 }
 
 // fetch prints pretty report
-func fetch(domain string, h Host, cafile string, dur time.Duration) {
+func fetch(h Host, cafile string, dur time.Duration) {
 	var expirationWarnings []string
 
-	hostport, err := h.Hostport()
+	chain, err := h.getChain()
 	if err != nil {
-		printStderr("ERROR: Problem with hostport: %s\n", err)
-	}
-
-	chain, err := getChain(h.domain, hostport)
-	if err != nil {
-		printStderr("ERROR: %s/%s: %v\n", h.domain, hostport, err)
+		printStderr("ERROR: %s/%s: %v\n", h.domain, err)
 		os.Exit(1)
 	}
 
@@ -144,7 +148,7 @@ func fetch(domain string, h Host, cafile string, dur time.Duration) {
 // getChain returns chain of certificates retrieved from TLS session
 // established at given addr (host:port) for hostname provided. If addr is
 // empty, then hostname:443 is used.
-func getChain(hostname, addr string) ([]*x509.Certificate, error) {
+func (h Host) getChain() ([]*x509.Certificate, error) {
 	var (
 		conn *tls.Conn
 		err  error
@@ -154,11 +158,15 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 		Temporary() bool
 	}
 
-	if hostname == "" {
-		return nil, errors.New("empty hostname")
+	hostport, err := h.Hostport()
+	if err != nil {
+		printStderr("ERROR: Problem with hostport: %s\n", err)
 	}
 
-	conf := &tls.Config{ServerName: hostname, InsecureSkipVerify: true}
+	conf := &tls.Config{InsecureSkipVerify: true}
+	if h.domain != "" {
+		conf.ServerName = h.domain
+	}
 
 	dialer := &net.Dialer{
 		Timeout: 30 * time.Second,
@@ -170,9 +178,9 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 			time.Sleep(time.Duration(i) * time.Second)
 		}
 
-		conn, err = tls.DialWithDialer(dialer, "tcp", addr, conf)
+		conn, err = tls.DialWithDialer(dialer, "tcp", hostport, conf)
 		if e, ok := err.(tempErr); ok && e.Temporary() {
-			printStderr("Connection attempt failed: %s\n", addr)
+			printStderr("Connection attempt failed: %s\n", hostport)
 			continue
 		}
 		if err != nil {
