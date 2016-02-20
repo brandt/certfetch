@@ -100,7 +100,7 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 			Bytes: c.Raw,
 		}))
 		fmt.Printf("%s", pem)
-		fmt.Fprintf(os.Stderr, "\n")
+		printStderr("\n")
 
 		if now.Before(c.NotBefore) {
 			bw := fmt.Sprintf("WARNING: %s is not valid until %v", domain, c.NotBefore)
@@ -114,30 +114,34 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 	}
 
 	for _, w := range expirationWarnings {
-		fmt.Fprintf(os.Stderr, "%s\n", w)
+		printStderr("%s\n", w)
 	}
 	if len(expirationWarnings) != 0 {
-		fmt.Fprintf(os.Stderr, "\n")
+		printStderr("\n")
 	}
 
 	res := Verify(domain, chain, cafile)
 	if res == nil {
-		fmt.Fprintf(os.Stderr, "Verify PASSED\n")
+		printStderr("Verify PASSED\n")
 	} else {
-		fmt.Fprintf(os.Stderr, "Verify FAILED! Here's why: %s\n", res)
+		printStderr("Verify FAILED! Here's why: %s\n", res)
 		os.Exit(4)
 	}
 }
 
+func printStderr(fmtstr string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, fmtstr, a...)
+}
+
 func printCertInfo(c *x509.Certificate) {
 	if c.IsCA {
-		fmt.Fprintf(os.Stderr, "=== CERTIFICATE AUTHORITY ===\n")
+		printStderr("=== CERTIFICATE AUTHORITY ===\n")
 	}
 	printName("Issuer", c.Issuer)
 	printName("Subject", c.Subject)
-	fmt.Fprintf(os.Stderr, "Serial:     %d\n", c.SerialNumber)
-	fmt.Fprintf(os.Stderr, "NotBefore:  %v\n", c.NotBefore)
-	fmt.Fprintf(os.Stderr, "NotAfter:   %v\n", c.NotAfter)
+	printStderr("Serial:     %d\n", c.SerialNumber)
+	printStderr("NotBefore:  %v\n", c.NotBefore)
+	printStderr("NotAfter:   %v\n", c.NotAfter)
 	printSAN(c)
 }
 
@@ -145,47 +149,47 @@ func printSAN(c *x509.Certificate) {
 	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "SubjectAlternativeName:\n")
+	printStderr("SubjectAlternativeName:\n")
 	for _, d := range c.DNSNames {
-		fmt.Fprintf(os.Stderr, "- DNS: %s\n", d)
+		printStderr("- DNS: %s\n", d)
 	}
 	for _, e := range c.EmailAddresses {
-		fmt.Fprintf(os.Stderr, "- Email: %s\n", e)
+		printStderr("- Email: %s\n", e)
 	}
 	for _, i := range c.IPAddresses {
-		fmt.Fprintf(os.Stderr, "- IP: %s\n", i.String())
+		printStderr("- IP: %s\n", i.String())
 	}
 }
 
 func printName(title string, n pkix.Name) {
-	fmt.Fprintf(os.Stderr, "%s:\n", title)
+	printStderr("%s:\n", title)
 
 	if len(n.Country) != 0 {
-		fmt.Fprintf(os.Stderr, "  Country:\t\t%s\n", strings.Join(n.Country, " / "))
+		printStderr("  Country:\t\t%s\n", strings.Join(n.Country, " / "))
 	}
 	if len(n.Organization) != 0 {
-		fmt.Fprintf(os.Stderr, "  Organization:\t\t%s\n", strings.Join(n.Organization, " / "))
+		printStderr("  Organization:\t\t%s\n", strings.Join(n.Organization, " / "))
 	}
 	if len(n.OrganizationalUnit) != 0 {
-		fmt.Fprintf(os.Stderr, "  OrganizationalUnit:\t%s\n", strings.Join(n.OrganizationalUnit, " / "))
+		printStderr("  OrganizationalUnit:\t%s\n", strings.Join(n.OrganizationalUnit, " / "))
 	}
 	if len(n.Locality) != 0 {
-		fmt.Fprintf(os.Stderr, "  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
+		printStderr("  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
 	}
 	if len(n.Province) != 0 {
-		fmt.Fprintf(os.Stderr, "  Province:\t\t%s\n", strings.Join(n.Province, " / "))
+		printStderr("  Province:\t\t%s\n", strings.Join(n.Province, " / "))
 	}
 	if len(n.StreetAddress) != 0 {
-		fmt.Fprintf(os.Stderr, "  StreetAddress:\t%s\n", strings.Join(n.StreetAddress, " / "))
+		printStderr("  StreetAddress:\t%s\n", strings.Join(n.StreetAddress, " / "))
 	}
 	if len(n.PostalCode) != 0 {
-		fmt.Fprintf(os.Stderr, "  PostalCode:\t\t%s\n", strings.Join(n.PostalCode, " / "))
+		printStderr("  PostalCode:\t\t%s\n", strings.Join(n.PostalCode, " / "))
 	}
 	if len(n.SerialNumber) != 0 {
-		fmt.Fprintf(os.Stderr, "  SerialNumber:\t\t%s\n", n.SerialNumber)
+		printStderr("  SerialNumber:\t\t%s\n", n.SerialNumber)
 	}
 	if len(n.CommonName) != 0 {
-		fmt.Fprintf(os.Stderr, "  CommonName:\t\t%s\n", n.CommonName)
+		printStderr("  CommonName:\t\t%s\n", n.CommonName)
 	}
 }
 
