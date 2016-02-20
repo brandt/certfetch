@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 func printStderr(fmtstr string, a ...interface{}) {
@@ -31,8 +32,7 @@ func printCertInfo(c *x509.Certificate) {
 	printName("Subject", c.Subject)
 	printName("Issuer", c.Issuer)
 
-	printStderr("NotValidBefore: %s\n", c.NotBefore.Local().String())
-	printStderr("NotValidAfter:  %s\n", c.NotAfter.Local().String())
+	printValidityPeriod(c)
 
 	printStderr("Serial#: %d\n", c.SerialNumber)
 	printStderr("Version: %d\n", c.Version)
@@ -41,6 +41,15 @@ func printCertInfo(c *x509.Certificate) {
 	printPubKeyInfo(c)
 
 	printSAN(c)
+}
+
+func printValidityPeriod(c *x509.Certificate) {
+	expiration := c.NotAfter.Local().String()
+	if time.Now().After(c.NotAfter) {
+		expiration = expiration + " (EXPIRED)"
+	}
+	printStderr("NotValidBefore: %s\n", c.NotBefore.Local().String())
+	printStderr("NotValidAfter:  %s\n", expiration)
 }
 
 type KeyUsage x509.KeyUsage
