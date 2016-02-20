@@ -18,10 +18,12 @@ func printStderr(fmtstr string, a ...interface{}) {
 }
 
 func printCerts(chain []*x509.Certificate) {
-	for _, c := range chain {
+	for i, c := range chain {
 		if c.IsCA {
 			printStderr("=== CERTIFICATE AUTHORITY ===\n")
 		}
+		printStderr("## Certificate %d: %s\n", i, c.Subject.CommonName)
+
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
 
@@ -52,6 +54,7 @@ func printValidityPeriod(c *x509.Certificate) {
 type KeyUsage x509.KeyUsage
 
 // TODO: Maybe add OSX usages: http://security.stackexchange.com/a/30216/11113
+// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
 func (a KeyUsage) Split() (s []string) {
 	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
 		s = append(s, "Digital Signature")
