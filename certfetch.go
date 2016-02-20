@@ -142,9 +142,10 @@ func printCertInfo(c *x509.Certificate) {
 }
 
 func printSAN(c *x509.Certificate) {
-	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) > 0 {
-		fmt.Fprintf(os.Stderr, "SubjectAlternativeName:\n")
+	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) == 0 {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "SubjectAlternativeName:\n")
 	for _, d := range c.DNSNames {
 		fmt.Fprintf(os.Stderr, "- DNS: %s\n", d)
 	}
@@ -214,6 +215,7 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 		Timeout: 30 * time.Second,
 	}
 
+	// attempt to establish connection 3 times
 	for i := 0; i < 3; i++ {
 		if i > 0 {
 			time.Sleep(time.Duration(i) * time.Second)
