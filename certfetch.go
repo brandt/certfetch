@@ -86,8 +86,8 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 
 	chain, err := getChain(domain, addr)
 	if err != nil {
-		fmt.Printf("%s/%s: %v\n", domain, addr, err)
-		return
+		printStderr("ERROR: %s/%s: %v\n", domain, addr, err)
+		os.Exit(1)
 	}
 
 	now := time.Now()
