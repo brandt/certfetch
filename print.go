@@ -54,37 +54,36 @@ func printValidityPeriod(c *x509.Certificate) {
 
 type KeyUsage x509.KeyUsage
 
-func (a KeyUsage) String() string {
-	s := []string{}
+// TODO: Maybe add OSX usages: http://security.stackexchange.com/a/30216/11113
+func (a KeyUsage) Split() (s []string) {
 	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
-		s = append(s, "KeyUsageDigitalSignature")
+		s = append(s, "Digital Signature")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageContentCommitment != 0 {
-		s = append(s, "KeyUsageContentCommitment")
+		s = append(s, "Content Commitment (Non-Repudiation)")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
-		s = append(s, "KeyUsageKeyEncipherment")
+		s = append(s, "Key Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
-		s = append(s, "KeyUsageDataEncipherment")
+		s = append(s, "Data Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
-		s = append(s, "KeyUsageKeyAgreement")
+		s = append(s, "Key Agreement")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
-		s = append(s, "KeyUsageCertSign")
+		s = append(s, "Key Cert Sign")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
-		s = append(s, "KeyUsageCRLSign")
+		s = append(s, "CRL Sign")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageEncipherOnly != 0 {
-		s = append(s, "KeyUsageEncipherOnly")
+		s = append(s, "Encipher Only")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageDecipherOnly != 0 {
-		s = append(s, "KeyUsageDecipherOnly")
+		s = append(s, "Decipher Only")
 	}
-
-	return strings.Join(s, ",")
+	return s
 }
 
 type SignatureAlgorithm x509.SignatureAlgorithm
@@ -158,6 +157,14 @@ func printPubKeyInfo(c *x509.Certificate) {
 	}
 
 	printStderr("  KeySize: %d\n", bitlen)
+
+	usage := KeyUsage(c.KeyUsage).Split()
+	if len(usage) > 0 {
+		printStderr("  Usage:\n")
+		for _, u := range usage {
+			printStderr("    - %s\n", u)
+		}
+	}
 }
 
 func printSignatureInfo(c *x509.Certificate) {
