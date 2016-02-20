@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -20,37 +21,25 @@ func printStderr(fmtstr string, a ...interface{}) {
 func printCerts(chain []*x509.Certificate) {
 	for i, c := range chain {
 		printStderr("## Certificate %d: %s\n\n", i, c.Subject.CommonName)
-
 		if c.IsCA {
 			printStderr("=== CERTIFICATE AUTHORITY ===\n\n")
 		}
-
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
-
 		printValidityPeriod(c)
-
-		printStderr("Serial: %d\n", c.SerialNumber)
+		printStderr("Serial: %s\n", BigIntToString(c.SerialNumber))
 		printStderr("Version: %d\n", c.Version)
 		printSignatureInfo(c)
-		printNewline()
-
 		printPubKeyInfo(c)
-
 		printSAN(c)
-
 		printExtKeyUsage(c)
-
 		printPEM(c)
-
 		printSeparator()
-
 		printNewline()
 	}
 }
 
 func printSeparator() {
-	// printStderr("\n=========================\n")
 	printStderr("\n\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\n")
 }
 
@@ -234,6 +223,7 @@ func printSignatureInfo(c *x509.Certificate) {
 	printStderr("Signature:\n")
 	algorithm := SignatureAlgorithm(c.SignatureAlgorithm).String()
 	printStderr("  Algorithm: %s\n", algorithm)
+	printNewline()
 }
 
 func printPEM(c *x509.Certificate) {
@@ -259,6 +249,11 @@ func printSAN(c *x509.Certificate) {
 		printStderr("  - IP: %s\n", i.String())
 	}
 	printNewline()
+}
+
+// converts *big.Int to hex string
+func BigIntToString(bigint *big.Int) string {
+	return fmt.Sprintf("%X", bigint)
 }
 
 func printName(title string, n pkix.Name) {
