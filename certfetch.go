@@ -39,6 +39,9 @@ func init() {
 }
 
 func main() {
+	var expirationWarnings []string
+	now := time.Now()
+
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -53,7 +56,42 @@ func main() {
 		target.domain = conf.Domain
 	}
 
-	fetch(target, conf.CAfile, conf.Before)
+	chain, err := target.getChain()
+	if err != nil {
+		printStderr("ERROR: %s/%s: %v\n", target.domain, err)
+		os.Exit(1)
+	}
+
+	for _, c := range chain {
+		printCertInfo(c)
+		printPEM(c)
+		printStderr("\n")
+
+		if now.Before(c.NotBefore) {
+			bw := fmt.Sprintf("WARNING: %s is not valid until %v", target.domain, c.NotBefore)
+			expirationWarnings = append(expirationWarnings, bw)
+		}
+
+		if now.Add(conf.Before).After(c.NotAfter) {
+			aw := fmt.Sprintf("WARNING: %s will expire on %v", target.domain, c.NotAfter)
+			expirationWarnings = append(expirationWarnings, aw)
+		}
+	}
+
+	for _, w := range expirationWarnings {
+		printStderr("%s\n", w)
+	}
+	if len(expirationWarnings) != 0 {
+		printStderr("\n")
+	}
+
+	res := Verify(target.domain, chain, conf.CAfile)
+	if res != nil {
+		printStderr("Verify FAILED! Here's why: %s\n", res)
+		os.Exit(4)
+	}
+
+	printStderr("Verify PASSED\n")
 }
 
 func parseURL(arg string) (h Host) {
@@ -99,50 +137,6 @@ func (h Host) Hostport() (string, error) {
 	}
 	hostport := h.addr + ":" + port
 	return hostport, nil
-}
-
-// fetch prints pretty report
-func fetch(h Host, cafile string, dur time.Duration) {
-	var expirationWarnings []string
-
-	chain, err := h.getChain()
-	if err != nil {
-		printStderr("ERROR: %s/%s: %v\n", h.domain, err)
-		os.Exit(1)
-	}
-
-	now := time.Now()
-
-	for _, c := range chain {
-		printCertInfo(c)
-		printPEM(c)
-		printStderr("\n")
-
-		if now.Before(c.NotBefore) {
-			bw := fmt.Sprintf("WARNING: %s is not valid until %v", h.domain, c.NotBefore)
-			expirationWarnings = append(expirationWarnings, bw)
-		}
-
-		if now.Add(dur).After(c.NotAfter) {
-			aw := fmt.Sprintf("WARNING: %s will expire on %v", h.domain, c.NotAfter)
-			expirationWarnings = append(expirationWarnings, aw)
-		}
-	}
-
-	for _, w := range expirationWarnings {
-		printStderr("%s\n", w)
-	}
-	if len(expirationWarnings) != 0 {
-		printStderr("\n")
-	}
-
-	res := Verify(h.domain, chain, cafile)
-	if res != nil {
-		printStderr("Verify FAILED! Here's why: %s\n", res)
-		os.Exit(4)
-	}
-
-	printStderr("Verify PASSED\n")
 }
 
 // getChain returns chain of certificates retrieved from TLS session
