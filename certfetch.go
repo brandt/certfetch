@@ -200,10 +200,6 @@ func printName(title string, n pkix.Name) {
 // established at given addr (host:port) for hostname provided. If addr is
 // empty, then hostname:443 is used.
 func getChain(hostname, addr string) ([]*x509.Certificate, error) {
-	if hostname == "" {
-		return nil, errors.New("empty hostname")
-	}
-
 	var (
 		conn *tls.Conn
 		err  error
@@ -211,6 +207,10 @@ func getChain(hostname, addr string) ([]*x509.Certificate, error) {
 
 	type tempErr interface {
 		Temporary() bool
+	}
+
+	if hostname == "" {
+		return nil, errors.New("empty hostname")
 	}
 
 	conf := &tls.Config{ServerName: hostname, InsecureSkipVerify: true}
