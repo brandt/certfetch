@@ -7,14 +7,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
-	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -51,7 +48,12 @@ func main() {
 		fmt.Println("Too many arguments")
 		os.Exit(2)
 	}
-	target := parseURL(flag.Args()[0])
+
+	target, err := parseURL(flag.Args()[0])
+	if err != nil {
+		printStderr("ERROR: Problem parsing URL: %v\n", err)
+		os.Exit(2)
+	}
 	if conf.Domain != "" {
 		target.domain = conf.Domain
 	}
@@ -92,51 +94,6 @@ func main() {
 	}
 
 	printStderr("Verify PASSED\n")
-}
-
-func parseURL(arg string) (h Host) {
-	var hostport string
-	domainRegex := "^([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9])([.]([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9]))*[.]?$"
-
-	if strings.Contains(arg, "//") {
-		u, err := url.Parse(arg)
-		if err != nil {
-			panic(err)
-		}
-		hostport = u.Host
-	} else {
-		hostport = arg
-	}
-
-	host, port, err := parseHostport(hostport)
-	if err != nil {
-		printStderr("Invalid hostport: %s", hostport)
-		os.Exit(2)
-	}
-
-	res, _ := regexp.MatchString(domainRegex, host)
-	if res {
-		h.domain = host
-	} else {
-		h.domain = ""
-	}
-
-	h.addr = host
-	h.port = port
-
-	return h
-}
-
-func (h Host) Hostport() (string, error) {
-	port := "443"
-	if h.port != "" {
-		port = h.port
-	}
-	if h.addr == "" {
-		return "", errors.New("address empty")
-	}
-	hostport := h.addr + ":" + port
-	return hostport, nil
 }
 
 // getChain returns chain of certificates retrieved from TLS session
@@ -186,17 +143,6 @@ func (h Host) getChain() ([]*x509.Certificate, error) {
 	}
 
 	return nil, err
-}
-
-func parseHostport(hostport string) (host, port string, err error) {
-	if strings.Contains(hostport, "]") || strings.Count(hostport, ":") == 1 {
-		host, port, err = net.SplitHostPort(hostport)
-		if err != nil {
-			return host, port, err
-		}
-		return host, port, nil
-	}
-	return hostport, "", nil
 }
 
 func printStderr(fmtstr string, a ...interface{}) {
