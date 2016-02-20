@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/dsa"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -25,12 +28,133 @@ func printCertInfo(c *x509.Certificate) {
 	if c.IsCA {
 		printStderr("=== CERTIFICATE AUTHORITY ===\n")
 	}
-	printName("Issuer", c.Issuer)
 	printName("Subject", c.Subject)
-	printStderr("Serial:     %d\n", c.SerialNumber)
-	printStderr("NotBefore:  %v\n", c.NotBefore)
-	printStderr("NotAfter:   %v\n", c.NotAfter)
+	printName("Issuer", c.Issuer)
+
+	printStderr("NotValidBefore: %s\n", c.NotBefore.Local().String())
+	printStderr("NotValidAfter:  %s\n", c.NotAfter.Local().String())
+
+	printStderr("Serial#: %d\n", c.SerialNumber)
+	printStderr("Version: %d\n", c.Version)
+	printSignatureInfo(c)
+
+	printPubKeyInfo(c)
+
 	printSAN(c)
+}
+
+type KeyUsage x509.KeyUsage
+
+func (a KeyUsage) String() string {
+	s := []string{}
+	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
+		s = append(s, "KeyUsageDigitalSignature")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageContentCommitment != 0 {
+		s = append(s, "KeyUsageContentCommitment")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
+		s = append(s, "KeyUsageKeyEncipherment")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
+		s = append(s, "KeyUsageDataEncipherment")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
+		s = append(s, "KeyUsageKeyAgreement")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
+		s = append(s, "KeyUsageCertSign")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
+		s = append(s, "KeyUsageCRLSign")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageEncipherOnly != 0 {
+		s = append(s, "KeyUsageEncipherOnly")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageDecipherOnly != 0 {
+		s = append(s, "KeyUsageDecipherOnly")
+	}
+
+	return strings.Join(s, ",")
+}
+
+type SignatureAlgorithm x509.SignatureAlgorithm
+
+func (a SignatureAlgorithm) String() string {
+	switch x509.SignatureAlgorithm(a) {
+	case x509.UnknownSignatureAlgorithm:
+		return "Unknown Signature Algorithm"
+	case x509.MD2WithRSA:
+		return "MD2 with RSA"
+	case x509.MD5WithRSA:
+		return "MD5 with RSA"
+	case x509.SHA1WithRSA:
+		return "SHA-1 with RSA"
+	case x509.SHA256WithRSA:
+		return "SHA-256 with RSA"
+	case x509.SHA384WithRSA:
+		return "SHA-384 with RSA"
+	case x509.SHA512WithRSA:
+		return "SHA-512 with RSA"
+	case x509.DSAWithSHA1:
+		return "DSA with SHA1"
+	case x509.DSAWithSHA256:
+		return "DSA with SHA-256"
+	case x509.ECDSAWithSHA1:
+		return "ECDSA with SHA-1"
+	case x509.ECDSAWithSHA256:
+		return "ECDSA with SHA-256"
+	case x509.ECDSAWithSHA384:
+		return "ECDSA with SHA-384"
+	case x509.ECDSAWithSHA512:
+		return "ECDSA with SHA-512"
+	}
+	return ""
+}
+
+type PublicKeyAlgorithm x509.PublicKeyAlgorithm
+
+func (a PublicKeyAlgorithm) String() string {
+	switch x509.PublicKeyAlgorithm(a) {
+	case x509.UnknownPublicKeyAlgorithm:
+		return "Unknown"
+	case x509.RSA:
+		return "RSA"
+	case x509.DSA:
+		return "DSA"
+	case x509.ECDSA:
+		return "ECDSA"
+	}
+	return "Unknown"
+}
+
+func printPubKeyInfo(c *x509.Certificate) {
+	printStderr("PublicKey:\n")
+	algorithm := PublicKeyAlgorithm(c.PublicKeyAlgorithm).String()
+	printStderr("  Algorithm: %s\n", algorithm)
+
+	bitlen := 0
+	switch algorithm {
+	case "Unknown":
+		bitlen = 0
+	case "RSA":
+		publicKey := c.PublicKey.(*rsa.PublicKey)
+		bitlen = publicKey.N.BitLen()
+	case "DSA":
+		publicKey := c.PublicKey.(*dsa.PublicKey)
+		bitlen = publicKey.Y.BitLen()
+	case "ECDSA":
+		publicKey := c.PublicKey.(*ecdsa.PublicKey)
+		bitlen = publicKey.Y.BitLen()
+	}
+
+	printStderr("  KeySize: %d\n", bitlen)
+}
+
+func printSignatureInfo(c *x509.Certificate) {
+	printStderr("Signature:\n")
+	algorithm := SignatureAlgorithm(c.SignatureAlgorithm).String()
+	printStderr("  Algorithm: %s\n", algorithm)
 }
 
 func printPEM(c *x509.Certificate) {
@@ -47,21 +171,21 @@ func printSAN(c *x509.Certificate) {
 	}
 	printStderr("SubjectAlternativeName:\n")
 	for _, d := range c.DNSNames {
-		printStderr("- DNS: %s\n", d)
+		printStderr("  - DNS: %s\n", d)
 	}
 	for _, e := range c.EmailAddresses {
-		printStderr("- Email: %s\n", e)
+		printStderr("  - Email: %s\n", e)
 	}
 	for _, i := range c.IPAddresses {
-		printStderr("- IP: %s\n", i.String())
+		printStderr("  - IP: %s\n", i.String())
 	}
 }
 
 func printName(title string, n pkix.Name) {
 	printStderr("%s:\n", title)
 
-	if len(n.Country) != 0 {
-		printStderr("  Country:\t\t%s\n", strings.Join(n.Country, " / "))
+	if len(n.CommonName) != 0 {
+		printStderr("  CommonName:\t\t%s\n", n.CommonName)
 	}
 	if len(n.Organization) != 0 {
 		printStderr("  Organization:\t\t%s\n", strings.Join(n.Organization, " / "))
@@ -69,22 +193,22 @@ func printName(title string, n pkix.Name) {
 	if len(n.OrganizationalUnit) != 0 {
 		printStderr("  OrganizationalUnit:\t%s\n", strings.Join(n.OrganizationalUnit, " / "))
 	}
-	if len(n.Locality) != 0 {
-		printStderr("  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
-	}
-	if len(n.Province) != 0 {
-		printStderr("  Province:\t\t%s\n", strings.Join(n.Province, " / "))
-	}
 	if len(n.StreetAddress) != 0 {
 		printStderr("  StreetAddress:\t%s\n", strings.Join(n.StreetAddress, " / "))
+	}
+	if len(n.Locality) != 0 { // City
+		printStderr("  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
+	}
+	if len(n.Province) != 0 { // State
+		printStderr("  Province:\t\t%s\n", strings.Join(n.Province, " / "))
 	}
 	if len(n.PostalCode) != 0 {
 		printStderr("  PostalCode:\t\t%s\n", strings.Join(n.PostalCode, " / "))
 	}
+	if len(n.Country) != 0 {
+		printStderr("  Country:\t\t%s\n", strings.Join(n.Country, " / "))
+	}
 	if len(n.SerialNumber) != 0 {
 		printStderr("  SerialNumber:\t\t%s\n", n.SerialNumber)
-	}
-	if len(n.CommonName) != 0 {
-		printStderr("  CommonName:\t\t%s\n", n.CommonName)
 	}
 }
