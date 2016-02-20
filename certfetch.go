@@ -77,6 +77,8 @@ func parseURL(arg string) string {
 
 // fetch prints pretty report
 func fetch(domain, addr, cafile string, dur time.Duration) {
+	var expirationWarnings []string
+
 	if domain == "" {
 		h := strings.Split(addr, ":")
 		domain = h[0]
@@ -90,7 +92,7 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 
 	now := time.Now()
 
-	for i, c := range chain {
+	for _, c := range chain {
 		printCertInfo(c)
 
 		pem := string(pem.EncodeToMemory(&pem.Block{
@@ -101,12 +103,21 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 		fmt.Fprintf(os.Stderr, "\n")
 
 		if now.Before(c.NotBefore) {
-			fmt.Fprintf(os.Stderr, "%s/%s [%d]: NotBefore is %v\n", domain, addr, i, c.NotBefore)
+			bw := fmt.Sprintf("WARNING: %s is not valid until %v", domain, c.NotBefore)
+			expirationWarnings = append(expirationWarnings, bw)
 		}
 
 		if now.Add(dur).After(c.NotAfter) {
-			fmt.Fprintf(os.Stderr, "%s/%s [%d]: will expire soon (%v)\n", domain, addr, i, c.NotAfter)
+			aw := fmt.Sprintf("WARNING: %s will expire on %v", domain, c.NotAfter)
+			expirationWarnings = append(expirationWarnings, aw)
 		}
+	}
+
+	for _, w := range expirationWarnings {
+		fmt.Fprintf(os.Stderr, "%s\n", w)
+	}
+	if len(expirationWarnings) != 0 {
+		fmt.Fprintf(os.Stderr, "\n")
 	}
 
 	res := Verify(domain, chain, cafile)
