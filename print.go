@@ -73,8 +73,8 @@ func printValidityPeriod(c *x509.Certificate) {
 		expiration = expiration + " (EXPIRED)"
 	}
 	printStderr("Validity Period:\n")
-	printStderr("  Not Before:\t%s\n", c.NotBefore.Local().String())
-	printStderr("  Not After:\t%s\n", expiration)
+	printStderr("  Not Before:  %s\n", c.NotBefore.Local().String())
+	printStderr("  Not After:   %s\n", expiration)
 }
 
 type KeyUsage x509.KeyUsage
@@ -227,30 +227,30 @@ func printName(title string, n pkix.Name) {
 	printStderr("%s:\n", title)
 
 	if len(n.CommonName) != 0 {
-		printStderr("  Common Name:\t\t%s\n", n.CommonName)
+		printStderr("  Common Name:          %s\n", n.CommonName)
 	}
 	if len(n.Organization) != 0 {
-		printStderr("  Organization:\t\t%s\n", strings.Join(n.Organization, " / "))
+		printStderr("  Organization:         %s\n", strings.Join(n.Organization, " / "))
 	}
 	if len(n.OrganizationalUnit) != 0 {
-		printStderr("  Organizational Unit:\t%s\n", strings.Join(n.OrganizationalUnit, " / "))
+		printStderr("  Organizational Unit:  %s\n", strings.Join(n.OrganizationalUnit, " / "))
 	}
 	if len(n.StreetAddress) != 0 {
-		printStderr("  Street Address:\t%s\n", strings.Join(n.StreetAddress, " / "))
+		printStderr("  Street Address:       %s\n", strings.Join(n.StreetAddress, " / "))
 	}
 	if len(n.Locality) != 0 { // City
-		printStderr("  Locality:\t\t%s\n", strings.Join(n.Locality, " / "))
+		printStderr("  Locality:             %s\n", strings.Join(n.Locality, " / "))
 	}
 	if len(n.Province) != 0 { // State
-		printStderr("  Province:\t\t%s\n", strings.Join(n.Province, " / "))
+		printStderr("  Province:             %s\n", strings.Join(n.Province, " / "))
 	}
 	if len(n.PostalCode) != 0 {
-		printStderr("  PostalCode:\t\t%s\n", strings.Join(n.PostalCode, " / "))
+		printStderr("  PostalCode:           %s\n", strings.Join(n.PostalCode, " / "))
 	}
 	if len(n.Country) != 0 {
-		printStderr("  Country:\t\t%s\n", strings.Join(n.Country, " / "))
+		printStderr("  Country:              %s\n", strings.Join(n.Country, " / "))
 	}
 	if len(n.SerialNumber) != 0 {
-		printStderr("  Serial Number:\t%s\n", n.SerialNumber)
+		printStderr("  Serial Number:        %s\n", n.SerialNumber)
 	}
 }
