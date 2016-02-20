@@ -24,7 +24,7 @@ Usually, all you need to do is this:
 
 Additional options:
 
-    -domain STRING      use this domain name during TLS handshake
+    -domain STRING      specify different domain used during TLS handshake
     -cafile STRING      path to a CA file (PEM) to verify with instead of the default system root certs
     -exp DURATION       warn if certificate will expire in this period of time (default 720h0m0s)
     -file STRING        read domain+addr pairs from this CSV file
