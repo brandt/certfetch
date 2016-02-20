@@ -116,12 +116,12 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 	}
 
 	res := Verify(domain, chain, cafile)
-	if res == nil {
-		printStderr("Verify PASSED\n")
-	} else {
+	if res != nil {
 		printStderr("Verify FAILED! Here's why: %s\n", res)
 		os.Exit(4)
 	}
+
+	printStderr("Verify PASSED\n")
 }
 
 func printStderr(fmtstr string, a ...interface{}) {
