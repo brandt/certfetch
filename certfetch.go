@@ -94,12 +94,7 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 
 	for _, c := range chain {
 		printCertInfo(c)
-
-		pem := string(pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: c.Raw,
-		}))
-		fmt.Printf("%s", pem)
+		printPEM(c)
 		printStderr("\n")
 
 		if now.Before(c.NotBefore) {
@@ -131,6 +126,14 @@ func fetch(domain, addr, cafile string, dur time.Duration) {
 
 func printStderr(fmtstr string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, fmtstr, a...)
+}
+
+func printPEM(c *x509.Certificate) {
+	pem := string(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: c.Raw,
+	}))
+	fmt.Printf("%s", pem)
 }
 
 func printCertInfo(c *x509.Certificate) {
