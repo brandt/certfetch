@@ -234,7 +234,7 @@ func (a KeyUsage) Split() (s []string) {
 		s = append(s, "Key Agreement")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
-		s = append(s, "Key Cert Sign")
+		s = append(s, "Certificate Sign")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
 		s = append(s, "CRL Sign")
