@@ -65,7 +65,7 @@ func main() {
 
 	res := Verify(target.domain, chain, conf.CAfile)
 	if res != nil {
-		printStderr("Verify FAILED! Here's why: %s\n", res)
+		printStderr("%s Here's why: %s\n", colorize(FgRed, "Verify FAILED!"), res)
 		os.Exit(4)
 	}
 	printStderr("Verify PASSED\n")

@@ -12,23 +12,67 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/brandt/certfetch/isatty"
+)
+
+// NoColor set to true if STDOUT's file descriptor doesn't refer to a terminal.
+// This prevents us from redirecting the ANSI escape sequences to a file.
+var NoColor = !isatty.IsTerminal(os.Stdout.Fd())
+
+const esc = "\x1b"
+
+// Base attributes
+const (
+	Reset = iota
+	Bold
+	Faint
+	Italic
+	Underline
+	BlinkSlow
+	BlinkRapid
+	ReverseVideo
+	Concealed
+	CrossedOut
+)
+
+// Foreground text colors
+const (
+	FgBlack = iota + 30
+	FgRed
+	FgGreen
+	FgYellow
+	FgBlue
+	FgMagenta
+	FgCyan
+	FgWhite
 )
 
 func printStderr(fmtstr string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, fmtstr, a...)
 }
 
+func colorize(color int, str string) string {
+	if NoColor {
+		return str
+	}
+	return fmt.Sprintf("%s[%dm%s%s[%dm", esc, color, str, esc, Reset)
+}
+
 func printCerts(chain []*x509.Certificate) {
 	for i, c := range chain {
-		printStderr("## Certificate %d: %s\n\n", i, c.Subject.CommonName)
+		header := fmt.Sprintf("## Certificate %d: %s\n\n", i, c.Subject.CommonName)
+		printStderr(colorize(FgCyan, header))
+
 		if c.IsCA {
-			printStderr("=== CERTIFICATE AUTHORITY ===\n\n")
+			printStderr(colorize(FgRed, "=== CERTIFICATE AUTHORITY ===\n\n"))
 		}
+
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
 		printValidityPeriod(c)
 		printSerialNumber(c)
-		printStderr("Version: %d\n", c.Version)
+		printStderr("%s %d\n", colorize(FgBlue, "Version:"), c.Version)
 		printSignatureInfo(c)
 		printPubKeyInfo(c)
 		printSAN(c)
@@ -40,7 +84,7 @@ func printCerts(chain []*x509.Certificate) {
 }
 
 func printSeparator() {
-	printStderr("\n%s\n", strings.Repeat("\\/", 32))
+	printStderr("\n%s\n", colorize(FgYellow, strings.Repeat("\\/", 32)))
 }
 
 func printNewline() {
@@ -48,13 +92,14 @@ func printNewline() {
 }
 
 func printSerialNumber(c *x509.Certificate) {
-	printStderr("Serial: %s\n", BigIntToString(c.SerialNumber))
+	printStderr("%s %s\n", colorize(FgBlue, "Serial:"), BigIntToString(c.SerialNumber))
 }
 
 func printExtKeyUsage(c *x509.Certificate) {
 	usage := c.ExtKeyUsage
 	if len(usage) > 0 {
-		printStderr("Extension: Key Usage\n")
+		header := colorize(FgBlue, "Extension: Key Usage\n")
+		printStderr(header)
 		for _, u := range usage {
 			printStderr("  - %s\n", ExtKeyUsage(u).String())
 		}
@@ -66,12 +111,13 @@ func printValidityPeriod(c *x509.Certificate) {
 	start := c.NotBefore.Local().String()
 	expiration := c.NotAfter.Local().String()
 	if time.Now().Before(c.NotBefore) {
-		start = start + " (FUTURE)"
+		start = start + colorize(FgRed, " (FUTURE)")
 	}
 	if time.Now().After(c.NotAfter) {
-		expiration = expiration + " (EXPIRED)"
+		expiration = expiration + colorize(FgRed, " (EXPIRED)")
 	}
-	printStderr("Validity Period:\n")
+	header := colorize(FgBlue, "Validity Period\n")
+	printStderr(header)
 	printStderr("  Not Before:  %s\n", start)
 	printStderr("  Not After:   %s\n", expiration)
 	printNewline()
@@ -195,7 +241,8 @@ func (a PublicKeyAlgorithm) String() string {
 }
 
 func printPubKeyInfo(c *x509.Certificate) {
-	printStderr("Public Key:\n")
+	header := colorize(FgBlue, "Public Key:\n")
+	printStderr(header)
 	algorithm := PublicKeyAlgorithm(c.PublicKeyAlgorithm).String()
 	printStderr("  Algorithm: %s\n", algorithm)
 
@@ -228,7 +275,8 @@ func printPubKeyInfo(c *x509.Certificate) {
 }
 
 func printSignatureInfo(c *x509.Certificate) {
-	printStderr("Signature:\n")
+	header := colorize(FgBlue, "Signature:\n")
+	printStderr(header)
 	algorithm := SignatureAlgorithm(c.SignatureAlgorithm).String()
 	printStderr("  Algorithm: %s\n", algorithm)
 	printNewline()
@@ -246,29 +294,34 @@ func printSAN(c *x509.Certificate) {
 	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) == 0 {
 		return
 	}
-	printStderr("Extension: Subject Alternative Name\n")
+	header := colorize(FgBlue, "Extension: Subject Alternative Name\n")
+	printStderr(header)
 	for _, d := range c.DNSNames {
-		printStderr("  - DNS: %s\n", d)
+		printStderr("  - %s %s\n", colorize(FgYellow, "DNS:"), d)
 	}
 	for _, e := range c.EmailAddresses {
-		printStderr("  - Email: %s\n", e)
+		printStderr("  - %s %s\n", colorize(FgYellow, "Email:"), e)
 	}
 	for _, i := range c.IPAddresses {
-		printStderr("  - IP: %s\n", i.String())
+		printStderr("  - %s %s\n", colorize(FgYellow, "IP:"), i.String())
 	}
 	printNewline()
 }
 
 // converts *big.Int to hex string
 func BigIntToString(bigint *big.Int) string {
-	return fmt.Sprintf("% X", bigint.Bytes())
+	if len(bigint.Bytes()) > 8 {
+		return fmt.Sprintf("% X", bigint.Bytes())
+	} else {
+		return fmt.Sprintf("%d", bigint)
+	}
 }
 
 func printName(title string, n pkix.Name) {
-	printStderr("%s:\n", title)
+	printStderr("%s\n", colorize(FgBlue, title+":"))
 
 	if len(n.CommonName) != 0 {
-		printStderr("  Common Name:          %s\n", n.CommonName)
+		printStderr("  Common Name:          %s\n", colorize(FgMagenta, n.CommonName))
 	}
 	if len(n.Organization) != 0 {
 		printStderr("  Organization:         %s\n", strings.Join(n.Organization, " / "))
@@ -296,4 +349,8 @@ func printName(title string, n pkix.Name) {
 	}
 
 	printNewline()
+}
+
+func printVerification() {
+
 }
