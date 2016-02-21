@@ -40,7 +40,7 @@ func printCerts(chain []*x509.Certificate) {
 }
 
 func printSeparator() {
-	printStderr("\n\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\n")
+	printStderr("\n%s\n", strings.Repeat("\\/", 32))
 }
 
 func printNewline() {
