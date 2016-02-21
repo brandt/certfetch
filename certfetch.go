@@ -45,7 +45,7 @@ func main() {
 
 	target, err := parseURL(flag.Args()[0])
 	if err != nil {
-		printStderr("ERROR: Problem parsing URL: %v\n", err)
+		printStderr("ERROR: Problem parsing URL: %s: %v\n", flag.Args()[0], err)
 		os.Exit(2)
 	}
 
@@ -56,7 +56,7 @@ func main() {
 
 	chain, err := target.getChain()
 	if err != nil {
-		printStderr("ERROR: %s/%s: %v\n", target.domain, err)
+		printStderr("ERROR: %s: %v\n", target.domain, err)
 		os.Exit(1)
 	}
 
