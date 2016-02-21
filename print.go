@@ -16,6 +16,11 @@ import (
 	"github.com/brandt/certfetch/isatty"
 )
 
+type KeyUsage x509.KeyUsage
+type ExtKeyUsage x509.ExtKeyUsage
+type SignatureAlgorithm x509.SignatureAlgorithm
+type PublicKeyAlgorithm x509.PublicKeyAlgorithm
+
 // NoColor set to true if STDOUT's file descriptor doesn't refer to a terminal.
 // This prevents us from redirecting the ANSI escape sequences to a file.
 var NoColor = !isatty.IsTerminal(os.Stdout.Fd())
@@ -84,32 +89,42 @@ func printCerts(chain []*x509.Certificate) {
 	}
 }
 
-func printSeparator() {
-	printStderr("\n%s\n", colorize(FgYellow, strings.Repeat("\\/", 32)))
-}
-
 func printNewline() {
 	printStderr("\n")
 }
 
-func printVersion(c *x509.Certificate) {
-	printStderr("%s %d\n", colorize(FgBlue, "Version:"), c.Version)
-}
+func printName(title string, n pkix.Name) {
+	printStderr("%s\n", colorize(FgBlue, title+":"))
 
-func printSerialNumber(c *x509.Certificate) {
-	printStderr("%s %s\n", colorize(FgBlue, "Serial:"), BigIntToString(c.SerialNumber))
-}
-
-func printExtKeyUsage(c *x509.Certificate) {
-	usage := c.ExtKeyUsage
-	if len(usage) > 0 {
-		header := colorize(FgBlue, "Extension: Key Usage\n")
-		printStderr(header)
-		for _, u := range usage {
-			printStderr("  - %s\n", ExtKeyUsage(u).String())
-		}
-		printNewline()
+	if len(n.CommonName) != 0 {
+		printStderr("  Common Name:          %s\n", colorize(FgMagenta, n.CommonName))
 	}
+	if len(n.Organization) != 0 {
+		printStderr("  Organization:         %s\n", strings.Join(n.Organization, " / "))
+	}
+	if len(n.OrganizationalUnit) != 0 {
+		printStderr("  Organizational Unit:  %s\n", strings.Join(n.OrganizationalUnit, " / "))
+	}
+	if len(n.StreetAddress) != 0 {
+		printStderr("  Street Address:       %s\n", strings.Join(n.StreetAddress, " / "))
+	}
+	if len(n.Locality) != 0 { // City
+		printStderr("  Locality:             %s\n", strings.Join(n.Locality, " / "))
+	}
+	if len(n.Province) != 0 { // State
+		printStderr("  Province:             %s\n", strings.Join(n.Province, " / "))
+	}
+	if len(n.PostalCode) != 0 {
+		printStderr("  PostalCode:           %s\n", strings.Join(n.PostalCode, " / "))
+	}
+	if len(n.Country) != 0 {
+		printStderr("  Country:              %s\n", strings.Join(n.Country, " / "))
+	}
+	if len(n.SerialNumber) != 0 {
+		printStderr("  Serial Number:        %s\n", n.SerialNumber)
+	}
+
+	printNewline()
 }
 
 func printValidityPeriod(c *x509.Certificate) {
@@ -128,74 +143,23 @@ func printValidityPeriod(c *x509.Certificate) {
 	printNewline()
 }
 
-type KeyUsage x509.KeyUsage
-
-// TODO: Maybe add OSX usages: http://security.stackexchange.com/a/30216/11113
-// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
-func (a KeyUsage) Split() (s []string) {
-	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
-		s = append(s, "Digital Signature")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageContentCommitment != 0 {
-		s = append(s, "Content Commitment (Non-Repudiation)")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
-		s = append(s, "Key Encipherment")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
-		s = append(s, "Data Encipherment")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
-		s = append(s, "Key Agreement")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
-		s = append(s, "Key Cert Sign")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
-		s = append(s, "CRL Sign")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageEncipherOnly != 0 {
-		s = append(s, "Encipher Only")
-	}
-	if x509.KeyUsage(a)&x509.KeyUsageDecipherOnly != 0 {
-		s = append(s, "Decipher Only")
-	}
-	return s
+func printSerialNumber(c *x509.Certificate) {
+	printStderr("%s %s\n", colorize(FgBlue, "Serial:"), BigIntToString(c.SerialNumber))
 }
 
-type ExtKeyUsage x509.ExtKeyUsage
-
-func (a ExtKeyUsage) String() string {
-	switch x509.ExtKeyUsage(a) {
-	case x509.ExtKeyUsageAny:
-		return "Any"
-	case x509.ExtKeyUsageServerAuth:
-		return "Server Auth"
-	case x509.ExtKeyUsageClientAuth:
-		return "Client Auth"
-	case x509.ExtKeyUsageCodeSigning:
-		return "Code Signing"
-	case x509.ExtKeyUsageEmailProtection:
-		return "Email Protection"
-	case x509.ExtKeyUsageIPSECEndSystem:
-		return "IPSEC End System"
-	case x509.ExtKeyUsageIPSECTunnel:
-		return "IPSEC Tunnel"
-	case x509.ExtKeyUsageIPSECUser:
-		return "IPSEC User"
-	case x509.ExtKeyUsageTimeStamping:
-		return "Time Stamping"
-	case x509.ExtKeyUsageOCSPSigning:
-		return "OCSP Signing"
-	case x509.ExtKeyUsageMicrosoftServerGatedCrypto:
-		return "Microsoft Server Gated Crypto"
-	case x509.ExtKeyUsageNetscapeServerGatedCrypto:
-		return "Netscape Server Gated Crypto"
+// Converts *big.Int to hex string
+// If the number can be expressed as a decimal uint64, it will be.
+func BigIntToString(bigint *big.Int) string {
+	if len(bigint.Bytes()) > 8 {
+		return fmt.Sprintf("% X", bigint.Bytes())
+	} else {
+		return fmt.Sprintf("%d", bigint)
 	}
-	return "Unknown"
 }
 
-type SignatureAlgorithm x509.SignatureAlgorithm
+func printVersion(c *x509.Certificate) {
+	printStderr("%s %d\n", colorize(FgBlue, "Version:"), c.Version)
+}
 
 func (a SignatureAlgorithm) String() string {
 	switch x509.SignatureAlgorithm(a) {
@@ -229,7 +193,13 @@ func (a SignatureAlgorithm) String() string {
 	return ""
 }
 
-type PublicKeyAlgorithm x509.PublicKeyAlgorithm
+func printSignatureInfo(c *x509.Certificate) {
+	header := colorize(FgBlue, "Signature:\n")
+	printStderr(header)
+	algorithm := SignatureAlgorithm(c.SignatureAlgorithm).String()
+	printStderr("  Algorithm: %s\n", algorithm)
+	printNewline()
+}
 
 func (a PublicKeyAlgorithm) String() string {
 	switch x509.PublicKeyAlgorithm(a) {
@@ -243,6 +213,39 @@ func (a PublicKeyAlgorithm) String() string {
 		return "ECDSA"
 	}
 	return "Unknown"
+}
+
+// TODO: Maybe add OSX usages: http://security.stackexchange.com/a/30216/11113
+// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+func (a KeyUsage) Split() (s []string) {
+	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
+		s = append(s, "Digital Signature")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageContentCommitment != 0 {
+		s = append(s, "Content Commitment (Non-Repudiation)")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
+		s = append(s, "Key Encipherment")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
+		s = append(s, "Data Encipherment")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
+		s = append(s, "Key Agreement")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
+		s = append(s, "Key Cert Sign")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
+		s = append(s, "CRL Sign")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageEncipherOnly != 0 {
+		s = append(s, "Encipher Only")
+	}
+	if x509.KeyUsage(a)&x509.KeyUsageDecipherOnly != 0 {
+		s = append(s, "Decipher Only")
+	}
+	return s
 }
 
 func printPubKeyInfo(c *x509.Certificate) {
@@ -279,22 +282,6 @@ func printPubKeyInfo(c *x509.Certificate) {
 	printNewline()
 }
 
-func printSignatureInfo(c *x509.Certificate) {
-	header := colorize(FgBlue, "Signature:\n")
-	printStderr(header)
-	algorithm := SignatureAlgorithm(c.SignatureAlgorithm).String()
-	printStderr("  Algorithm: %s\n", algorithm)
-	printNewline()
-}
-
-func printPEM(c *x509.Certificate) {
-	pem := string(pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: c.Raw,
-	}))
-	fmt.Printf("%s", pem)
-}
-
 func printSAN(c *x509.Certificate) {
 	if len(c.DNSNames)+len(c.EmailAddresses)+len(c.IPAddresses) == 0 {
 		return
@@ -313,45 +300,56 @@ func printSAN(c *x509.Certificate) {
 	printNewline()
 }
 
-// converts *big.Int to hex string
-func BigIntToString(bigint *big.Int) string {
-	if len(bigint.Bytes()) > 8 {
-		return fmt.Sprintf("% X", bigint.Bytes())
-	} else {
-		return fmt.Sprintf("%d", bigint)
+func (a ExtKeyUsage) String() string {
+	switch x509.ExtKeyUsage(a) {
+	case x509.ExtKeyUsageAny:
+		return "Any"
+	case x509.ExtKeyUsageServerAuth:
+		return "Server Auth"
+	case x509.ExtKeyUsageClientAuth:
+		return "Client Auth"
+	case x509.ExtKeyUsageCodeSigning:
+		return "Code Signing"
+	case x509.ExtKeyUsageEmailProtection:
+		return "Email Protection"
+	case x509.ExtKeyUsageIPSECEndSystem:
+		return "IPSEC End System"
+	case x509.ExtKeyUsageIPSECTunnel:
+		return "IPSEC Tunnel"
+	case x509.ExtKeyUsageIPSECUser:
+		return "IPSEC User"
+	case x509.ExtKeyUsageTimeStamping:
+		return "Time Stamping"
+	case x509.ExtKeyUsageOCSPSigning:
+		return "OCSP Signing"
+	case x509.ExtKeyUsageMicrosoftServerGatedCrypto:
+		return "Microsoft Server Gated Crypto"
+	case x509.ExtKeyUsageNetscapeServerGatedCrypto:
+		return "Netscape Server Gated Crypto"
+	}
+	return "Unknown"
+}
+
+func printExtKeyUsage(c *x509.Certificate) {
+	usage := c.ExtKeyUsage
+	if len(usage) > 0 {
+		header := colorize(FgBlue, "Extension: Key Usage\n")
+		printStderr(header)
+		for _, u := range usage {
+			printStderr("  - %s\n", ExtKeyUsage(u).String())
+		}
+		printNewline()
 	}
 }
 
-func printName(title string, n pkix.Name) {
-	printStderr("%s\n", colorize(FgBlue, title+":"))
+func printPEM(c *x509.Certificate) {
+	pem := string(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: c.Raw,
+	}))
+	fmt.Printf("%s", pem)
+}
 
-	if len(n.CommonName) != 0 {
-		printStderr("  Common Name:          %s\n", colorize(FgMagenta, n.CommonName))
-	}
-	if len(n.Organization) != 0 {
-		printStderr("  Organization:         %s\n", strings.Join(n.Organization, " / "))
-	}
-	if len(n.OrganizationalUnit) != 0 {
-		printStderr("  Organizational Unit:  %s\n", strings.Join(n.OrganizationalUnit, " / "))
-	}
-	if len(n.StreetAddress) != 0 {
-		printStderr("  Street Address:       %s\n", strings.Join(n.StreetAddress, " / "))
-	}
-	if len(n.Locality) != 0 { // City
-		printStderr("  Locality:             %s\n", strings.Join(n.Locality, " / "))
-	}
-	if len(n.Province) != 0 { // State
-		printStderr("  Province:             %s\n", strings.Join(n.Province, " / "))
-	}
-	if len(n.PostalCode) != 0 {
-		printStderr("  PostalCode:           %s\n", strings.Join(n.PostalCode, " / "))
-	}
-	if len(n.Country) != 0 {
-		printStderr("  Country:              %s\n", strings.Join(n.Country, " / "))
-	}
-	if len(n.SerialNumber) != 0 {
-		printStderr("  Serial Number:        %s\n", n.SerialNumber)
-	}
-
-	printNewline()
+func printSeparator() {
+	printStderr("\n%s\n", colorize(FgYellow, strings.Repeat("\\/", 32)))
 }
