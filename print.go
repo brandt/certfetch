@@ -70,9 +70,10 @@ func printCerts(chain []*x509.Certificate) {
 
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
+
 		printValidityPeriod(c)
 		printSerialNumber(c)
-		printStderr("%s %d\n", colorize(FgBlue, "Version:"), c.Version)
+		printVersion(c)
 		printSignatureInfo(c)
 		printPubKeyInfo(c)
 		printSAN(c)
@@ -89,6 +90,10 @@ func printSeparator() {
 
 func printNewline() {
 	printStderr("\n")
+}
+
+func printVersion(c *x509.Certificate) {
+	printStderr("%s %d\n", colorize(FgBlue, "Version:"), c.Version)
 }
 
 func printSerialNumber(c *x509.Certificate) {
