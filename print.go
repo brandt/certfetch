@@ -258,7 +258,7 @@ func printPubKeyInfo(c *x509.Certificate) {
 		bitlen = publicKey.Y.BitLen()
 	case "ECDSA":
 		publicKey := c.PublicKey.(*ecdsa.PublicKey)
-		bitlen = publicKey.Y.BitLen()
+		bitlen = publicKey.Curve.Params().BitSize
 	}
 
 	printStderr("  Key Size: %d\n", bitlen)
