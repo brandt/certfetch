@@ -105,7 +105,10 @@ func (h Host) getChain() ([]*x509.Certificate, error) {
 		printStderr("ERROR: Problem with hostport: %s\n", err)
 	}
 
-	conf := &tls.Config{InsecureSkipVerify: true}
+	conf := &tls.Config{
+		InsecureSkipVerify: true,
+		MinVersion:         tls.VersionSSL30,
+	}
 	if h.domain != "" {
 		conf.ServerName = h.domain
 	}
