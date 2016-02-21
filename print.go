@@ -305,13 +305,13 @@ func (a ExtKeyUsage) String() string {
 	case x509.ExtKeyUsageAny:
 		return "Any"
 	case x509.ExtKeyUsageServerAuth:
-		return "Server Auth"
+		return "SSL/TLS Web Server Authentication"
 	case x509.ExtKeyUsageClientAuth:
-		return "Client Auth"
+		return "SSL/TLS Web Client Authentication"
 	case x509.ExtKeyUsageCodeSigning:
 		return "Code Signing"
 	case x509.ExtKeyUsageEmailProtection:
-		return "Email Protection"
+		return "Email Protection (S/MIME)"
 	case x509.ExtKeyUsageIPSECEndSystem:
 		return "IPSEC End System"
 	case x509.ExtKeyUsageIPSECTunnel:
