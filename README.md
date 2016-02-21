@@ -132,6 +132,12 @@ The certificates are output to STDOUT.  Info about the certs is output to STDERR
     Verify PASSED
 
 
+## Known Issues
+
+- Broken ciphers not supported because they're not supported by Go TLS lib.
+- SSLv2 not supported because it's not supported by the Go TLS lib.
+
+
 ## Todo
 
 - It desperately needs a refactor and tests.
