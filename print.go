@@ -355,7 +355,3 @@ func printName(title string, n pkix.Name) {
 
 	printNewline()
 }
-
-func printVerification() {
-
-}
