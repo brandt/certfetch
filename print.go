@@ -59,12 +59,16 @@ func printExtKeyUsage(c *x509.Certificate) {
 }
 
 func printValidityPeriod(c *x509.Certificate) {
+	start := c.NotBefore.Local().String()
 	expiration := c.NotAfter.Local().String()
+	if time.Now().Before(c.NotBefore) {
+		start = start + " (FUTURE)"
+	}
 	if time.Now().After(c.NotAfter) {
 		expiration = expiration + " (EXPIRED)"
 	}
 	printStderr("Validity Period:\n")
-	printStderr("  Not Before:  %s\n", c.NotBefore.Local().String())
+	printStderr("  Not Before:  %s\n", start)
 	printStderr("  Not After:   %s\n", expiration)
 	printNewline()
 }
