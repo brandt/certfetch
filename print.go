@@ -27,7 +27,7 @@ func printCerts(chain []*x509.Certificate) {
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
 		printValidityPeriod(c)
-		printStderr("Serial: %s\n", BigIntToString(c.SerialNumber))
+		printSerialNumber(c)
 		printStderr("Version: %d\n", c.Version)
 		printSignatureInfo(c)
 		printPubKeyInfo(c)
@@ -45,6 +45,10 @@ func printSeparator() {
 
 func printNewline() {
 	printStderr("\n")
+}
+
+func printSerialNumber(c *x509.Certificate) {
+	printStderr("Serial: %s\n", BigIntToString(c.SerialNumber))
 }
 
 func printExtKeyUsage(c *x509.Certificate) {
@@ -257,7 +261,7 @@ func printSAN(c *x509.Certificate) {
 
 // converts *big.Int to hex string
 func BigIntToString(bigint *big.Int) string {
-	return fmt.Sprintf("%X", bigint)
+	return fmt.Sprintf("% X", bigint.Bytes())
 }
 
 func printName(title string, n pkix.Name) {
