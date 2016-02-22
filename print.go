@@ -21,9 +21,9 @@ type ExtKeyUsage x509.ExtKeyUsage
 type SignatureAlgorithm x509.SignatureAlgorithm
 type PublicKeyAlgorithm x509.PublicKeyAlgorithm
 
-// NoColor set to true if STDOUT's file descriptor doesn't refer to a terminal.
+// noColor set to true if STDOUT's file descriptor doesn't refer to a terminal.
 // This prevents us from redirecting the ANSI escape sequences to a file.
-var NoColor = !isatty.IsTerminal(os.Stdout.Fd())
+var noColor = !isatty.IsTerminal(os.Stdout.Fd())
 
 const esc = "\x1b"
 
@@ -58,7 +58,7 @@ func printStderr(fmtstr string, a ...interface{}) {
 }
 
 func colorize(color int, str string) string {
-	if NoColor {
+	if noColor {
 		return str
 	}
 	return fmt.Sprintf("%s[%dm%s%s[%dm", esc, color, str, esc, Reset)
