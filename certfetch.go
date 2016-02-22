@@ -65,10 +65,11 @@ func main() {
 
 	res := Verify(target.domain, chain, conf.CAfile)
 	if res != nil {
-		printStderr("%s Here's why: %s\n", colorize(FgRed, "Verify FAILED!"), res)
+		printStderr("%s", colorize(FgRed, "Verify: FAIL\n  `-> Reason: "))
+		printStderr("%s\n", res)
 		os.Exit(4)
 	}
-	printStderr("Verify PASSED\n")
+	printStderr("Verify: PASS\n")
 }
 
 func checkDates(chain []*x509.Certificate) {
