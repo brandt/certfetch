@@ -229,12 +229,17 @@ func (a KeyUsage) Split() (s []string) {
 		s = append(s, "Content Commitment (Non-Repudiation)")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
+		// Required for RSA TLS
+		// For encrypting a symetric key.
 		s = append(s, "Key Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
+		// For directly encrypting data; not commonly used.
 		s = append(s, "Data Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
+		// Required for ECDH TLS
+		// Not *strictly* required for ECDHE TLS
 		s = append(s, "Key Agreement")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
