@@ -88,9 +88,7 @@ func checkDates(chain []*x509.Certificate) {
 	}
 }
 
-// getChain returns chain of certificates retrieved from TLS session
-// established at given addr (host:port) for hostname provided. If addr is
-// empty, then hostname:443 is used.
+// getChain returns the chain of certificates retrieved from TLS session
 func (h Host) getChain() ([]*x509.Certificate, error) {
 	var (
 		conn *tls.Conn
