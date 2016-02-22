@@ -59,16 +59,25 @@ func parseURL(arg string) (h Host, err error) {
 
 // Build a hostport from info in a Host struct
 func (h Host) Hostport() (string, error) {
+	var hostport string
 	// Defaults to port 443 if no port specified
 	port := "443"
+
 	if h.port != "" {
 		port = h.port
 	}
+
 	if h.addr == "" {
 		return "", errors.New("address empty")
 	}
-	// FIXME: This might not work for IPv6 (not sure if net.SplitHostPort retains the square brackets)
-	hostport := h.addr + ":" + port
+
+	// If addr has a colon, assume this is an IPv6 address
+	// Simplistic, but hopefully will work given how addr is set.
+	if strings.Contains(h.addr, ":") {
+		hostport = "[" + h.addr + "]:" + port
+	} else {
+		hostport = h.addr + ":" + port
+	}
 	return hostport, nil
 }
 
