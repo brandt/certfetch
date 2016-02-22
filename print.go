@@ -73,6 +73,10 @@ func printCerts(chain []*x509.Certificate) {
 			printStderr(colorize(FgRed, "=== CERTIFICATE AUTHORITY ===\n\n"))
 		}
 
+		if c.Subject.CommonName == c.Issuer.CommonName {
+			printStderr(colorize(FgYellow, "=== SELF-SIGNED ===\n\n"))
+		}
+
 		printName("Subject", c.Subject)
 		printName("Issuer", c.Issuer)
 
