@@ -43,6 +43,8 @@ func main() {
 		os.Exit(2)
 	}
 
+	// Attempt to parse the input URI similar to the way curl does it.
+	// Note: Instead of defaulting to port 80, we default to port 443.
 	target, err := parseURL(flag.Args()[0])
 	if err != nil {
 		printStderr("ERROR: Problem parsing URL: %s: %v\n", flag.Args()[0], err)
@@ -54,15 +56,20 @@ func main() {
 		target.domain = conf.Domain
 	}
 
+	// Attempt to fetch the certs
 	chain, err := target.getChain()
 	if err != nil {
 		printStderr("ERROR: %s: %v\n", target.domain, err)
 		os.Exit(1)
 	}
 
+	// Print certs with info
 	printCerts(chain)
+
+	// Print date warnings if applicable
 	checkDates(chain)
 
+	// Attempt to verify the certs
 	res := Verify(target.domain, chain, conf.CAfile)
 	if res != nil {
 		printStderr("%s", colorize(FgRed, "Verify: FAIL\n  `-> Reason: "))
@@ -72,6 +79,9 @@ func main() {
 	printStderr("Verify: PASS\n")
 }
 
+// Checks the NotBefore and NotAfter dates on the certificate,
+// prints a warning if the cert will be expiring soon or if it's
+// not yet valid.
 func checkDates(chain []*x509.Certificate) {
 	now := time.Now()
 

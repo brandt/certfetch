@@ -57,6 +57,7 @@ func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 	return nil
 }
 
+// Read in a CA file and return a pool of root certs
 func readCAfile(path string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 
