@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -22,7 +21,6 @@ import (
 // An important difference is that we default to port 443 instead of 80.
 func parseURL(arg string) (h Host, err error) {
 	var hostport string
-	domainRegex := "^([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9])([.]([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9]))*[.]?$"
 
 	// If arg contains a "//", try to parse it as a URL and extract the hostport.
 	if strings.Contains(arg, "//") {
@@ -40,14 +38,14 @@ func parseURL(arg string) (h Host, err error) {
 		return h, err
 	}
 
-	// Detect whether the host is a domain (rather than an IP)
-	// If so, set the domain member.
-	res, _ := regexp.MatchString(domainRegex, host)
-	if res {
-		h.domain = host
-	} else {
-		h.domain = ""
-	}
+	// Set the domain to host.
+	//
+	// This could be an IP address (I know, that's weird).  That means at least
+	// one of these has to happen in order for the cert to pass verification:
+	//
+	//   A. The user overrides domain using the -domain flag.
+	//   B. The leaf SAN has a matching IP address.
+	h.domain = host
 
 	// We set addr to host, though this might be a little confusing as host
 	// can be a DNS name.  If it is, the system will resolve it on its own.
