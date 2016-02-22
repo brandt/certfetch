@@ -1,3 +1,4 @@
+// Prints a DN given a Subject or Issuer Names array
 package main
 
 import (
