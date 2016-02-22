@@ -386,13 +386,13 @@ func printChainPaths(chains [][]*x509.Certificate) {
 
 		for n, cert := range path {
 			if n == 0 {
-				cert_type = "LEAF"
+				cert_type = colorize(FgCyan, "LEAF")
 			} else if n == (len(path) - 1) {
-				cert_type = "ROOT"
+				cert_type = colorize(FgMagenta, "ROOT")
 			} else {
-				cert_type = "INTR"
+				cert_type = colorize(FgBlue, "INTR")
 			}
-			dn := wrapString(NamesToDN(cert.Subject.Names), 58, 13)
+			dn := wrapString(NamesToDN(cert.Subject.Names), 58, 11)
 			printStderr("  %d.  %-6s %s\n", n, cert_type, dn)
 		}
 	}
@@ -440,6 +440,7 @@ func getTagForOid(oid asn1.ObjectIdentifier) string {
 	return fmt.Sprint(oid)
 }
 
+// Modified from github.com/mitchellh/go-wordwrap
 func wrapString(s string, lim uint, indent int) string {
 	// Initialize a buffer with a slightly larger size to account for breaks
 	init := make([]byte, 0, len(s))
