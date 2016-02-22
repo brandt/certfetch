@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -243,6 +245,9 @@ func (a KeyUsage) Split() (s []string) {
 		s = append(s, "Key Agreement")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCertSign != 0 {
+		// If keyCertSign is set then BasicConstraints CA true MUST also be set,
+		// however if BasicConstraints CA TRUE is present then KeyUsage keyCertSign
+		// need not be present.
 		s = append(s, "Certificate Sign")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageCRLSign != 0 {
@@ -314,12 +319,16 @@ func (a ExtKeyUsage) String() string {
 	case x509.ExtKeyUsageAny:
 		return "Any"
 	case x509.ExtKeyUsageServerAuth:
+		// valid with digitalSignature, keyEncipherment or keyAgreement
 		return "SSL/TLS Web Server Authentication"
 	case x509.ExtKeyUsageClientAuth:
+		// valid with digitalSignature or keyAgreement
 		return "SSL/TLS Web Client Authentication"
 	case x509.ExtKeyUsageCodeSigning:
+		// valid with digitalSignature
 		return "Code Signing"
 	case x509.ExtKeyUsageEmailProtection:
+		// valid with digitalSignature, nonRepudiation, and/or (keyEncipherment or keyAgreement)
 		return "Email Protection (S/MIME)"
 	case x509.ExtKeyUsageIPSECEndSystem:
 		return "IPSEC End System"
@@ -328,8 +337,10 @@ func (a ExtKeyUsage) String() string {
 	case x509.ExtKeyUsageIPSECUser:
 		return "IPSEC User"
 	case x509.ExtKeyUsageTimeStamping:
+		// valid with digitalSignature and/or nonRepudiation
 		return "Time Stamping"
 	case x509.ExtKeyUsageOCSPSigning:
+		// valid with digitalSignature and/or nonRepudiation
 		return "OCSP Signing"
 	case x509.ExtKeyUsageMicrosoftServerGatedCrypto:
 		return "Microsoft Server Gated Crypto"
@@ -361,4 +372,139 @@ func printPEM(c *x509.Certificate) {
 
 func printSeparator() {
 	printStderr("\n%s\n", colorize(FgYellow, strings.Repeat("\\/", 32)))
+}
+
+func printChainPaths(chains [][]*x509.Certificate) {
+	var cert_type string
+
+	for i, path := range chains {
+		printStderr("Path %d:\n", i)
+
+		for n, cert := range path {
+			if n == 0 {
+				cert_type = "LEAF"
+			} else if n == (len(path) - 1) {
+				cert_type = "ROOT"
+			} else {
+				cert_type = "INTR"
+			}
+			// dn := DistinguishedNameToString(cert.Subject)
+			// dn := getDN(cert.Subject.Names)
+			// dn := cert.Subject.ToRDNSequence()
+			dn := GetNameString(cert.Subject.Names)
+			printStderr("  %d.  %-6s %s\n", n, cert_type, dn)
+		}
+	}
+}
+
+// Taken from github.com/mozkeeler/sunlight
+func maybeAppendFieldToBuffer(buffer *bytes.Buffer, field []string, prefix string) {
+	if len(field) > 0 && len(field[0]) > 0 {
+		if buffer.Len() > 0 {
+			fmt.Fprint(buffer, ", ")
+		}
+		fmt.Fprint(buffer, prefix, field[0])
+	}
+}
+
+// Taken from github.com/mozkeeler/sunlight
+//
+// This is strange: x509.pkix.Name is defined as:
+// type Name struct {
+//   Country, Organization, OrganizationalUnit []string
+//   Locality, Province                        []string
+//   StreetAddress, PostalCode                 []string
+//   SerialNumber, CommonName                  string
+//
+//   Names []AttributeTypeAndValue
+// }
+// so in theory there could be multiple values for Country, Organization, etc.
+// (except for SerialNumber and CommonName, the former of which we're completely
+// ignoring anyway). We'll just be lazy and take the first of each.
+// Also, since our list of root CAs only uses Organization, OrganizationalUnit,
+// and CommonName, we'll only consider those.
+func DistinguishedNameToString(n pkix.Name) string {
+	buffer := bytes.NewBufferString("")
+	maybeAppendFieldToBuffer(buffer, n.Organization, "O=")
+	maybeAppendFieldToBuffer(buffer, n.OrganizationalUnit, "OU=")
+	maybeAppendFieldToBuffer(buffer, []string{n.CommonName}, "CN=")
+	return buffer.String()
+}
+
+// See: RFC 2253
+// https://www.ietf.org/rfc/rfc2253.txt
+// https://tools.ietf.org/html/rfc2253#section-2.3
+func getDN(names []pkix.AttributeTypeAndValue) string {
+	var buffer bytes.Buffer
+	// Reverse the order
+	// for i := len(names); i > 0; i-- {
+	for i, n := range names {
+		t := n.Type
+		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+			switch t[3] {
+			case 3:
+				buffer.WriteString("CN")
+			case 6:
+				buffer.WriteString("C")
+			case 7:
+				buffer.WriteString("L")
+			case 8:
+				buffer.WriteString("ST")
+			case 9:
+				buffer.WriteString("STREET")
+			case 10:
+				buffer.WriteString("O")
+			case 11:
+				buffer.WriteString("OU")
+			}
+		}
+		buffer.WriteString("=")
+		val, _ := n.Value.(string)
+		buffer.WriteString(val)
+		if i < len(names)-1 {
+			buffer.WriteString(", ")
+		}
+	}
+	return buffer.String()
+}
+
+func GetNameString(names []pkix.AttributeTypeAndValue) string {
+	var b bytes.Buffer
+
+	for i, v := range names {
+		// b.WriteString("/")
+		b.WriteString(getTagForOid(v.Type))
+		b.WriteString("=")
+		b.WriteString(fmt.Sprint(v.Value))
+		if i < len(names)-1 {
+			b.WriteString(", ")
+		}
+	}
+
+	return b.String()
+}
+
+func getTagForOid(oid asn1.ObjectIdentifier) string {
+	type oidNameMap struct {
+		oid  []int
+		name string
+	}
+
+	oidTags := []oidNameMap{
+		{[]int{2, 5, 4, 3}, "CN"},
+		{[]int{2, 5, 4, 5}, "SN"},
+		{[]int{2, 5, 4, 6}, "C"},
+		{[]int{2, 5, 4, 7}, "L"},
+		{[]int{2, 5, 4, 8}, "ST"},
+		{[]int{2, 5, 4, 10}, "O"},
+		{[]int{2, 5, 4, 11}, "OU"},
+		{[]int{1, 2, 840, 113549, 1, 9, 1}, "E"}}
+
+	for _, v := range oidTags {
+		if oid.Equal(v.oid) {
+			return v.name
+		}
+	}
+
+	return fmt.Sprint(oid)
 }

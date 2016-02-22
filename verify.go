@@ -50,6 +50,10 @@ func Verify(dnsName string, chain []*x509.Certificate, cafile string) error {
 	if len(chains) == 0 || err != nil {
 		return fmt.Errorf("certificate verification failed: %v", err)
 	}
+
+	fmt.Printf("Found %d chain paths...\n", len(chains))
+	printChainPaths(chains)
+
 	return nil
 }
 
