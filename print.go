@@ -282,6 +282,8 @@ func printPubKeyInfo(c *x509.Certificate) {
 	case "RSA":
 		publicKey := c.PublicKey.(*rsa.PublicKey)
 		bitlen = publicKey.N.BitLen()
+		publicExp := publicKey.E
+		printStderr("  Public Exponent: %d\n", publicExp)
 	case "DSA":
 		publicKey := c.PublicKey.(*dsa.PublicKey)
 		bitlen = publicKey.Y.BitLen()
