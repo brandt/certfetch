@@ -222,18 +222,23 @@ func (a PublicKeyAlgorithm) String() string {
 	return "Unknown"
 }
 
-// TODO: Maybe add OSX usages: http://security.stackexchange.com/a/30216/11113
-// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+// Defined in: https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+//
+// Note: Key Usage has a long history of being ignored by software and being
+// implemented incorrectly by CAs.  We're talking holy-shit-facepalm-level
+// screwups.
 func (a KeyUsage) Split() (s []string) {
 	if x509.KeyUsage(a)&x509.KeyUsageDigitalSignature != 0 {
+		// Short-term authentication signature (performed automatically and
+		// frequently). Can sign any kind of document, except other certs.
 		s = append(s, "Digital Signature")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageContentCommitment != 0 {
+		// Different people have different interpretations of what this means.
 		s = append(s, "Content Commitment (Non-Repudiation)")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyEncipherment != 0 {
-		// Required for RSA TLS
-		// For encrypting a symetric key.
+		// Exchange of encrypted session keys (RSA)
 		s = append(s, "Key Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageDataEncipherment != 0 {
@@ -241,6 +246,7 @@ func (a KeyUsage) Split() (s []string) {
 		s = append(s, "Data Encipherment")
 	}
 	if x509.KeyUsage(a)&x509.KeyUsageKeyAgreement != 0 {
+		// Used by DH
 		// Required for ECDH TLS
 		// Not *strictly* required for ECDHE TLS
 		s = append(s, "Key Agreement")
