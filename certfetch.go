@@ -27,7 +27,7 @@ var conf struct {
 
 func init() {
 	flag.StringVar(&conf.Domain, "domain", "", "specify different domain used during TLS handshake")
-	flag.StringVar(&conf.CAfile, "cafile", "", "path to a CA file (PEM) to verify with instead of the default root certs")
+	flag.StringVar(&conf.CAfile, "cafile", "", "path to a CA file (PEM) to use instead of the default system root certs")
 	flag.DurationVar(&conf.Before, "exp", 30*24*time.Hour, "warn if certificate will expire in this period of time")
 	log.SetFlags(0)
 }
