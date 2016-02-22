@@ -15,10 +15,15 @@ import (
 // - 192.30.252.131
 // - github.com:443
 // - 192.30.252.131:443
+// - 2607:f8b0:400f:803::200e
+// - [2607:f8b0:400f:803::200e]:443
+// - https://github.com:443
 // - https://github.com
-// - http://github.com   # Caveat: This will be interpreted as port 443.
+// - http://github.com      # This will be interpreted as port 443.
+// - http://github.com:443  # This will still use TLS.
+// - etc.
 //
-// An important difference is that we default to port 443 instead of 80.
+// We default to port 443/HTTPS instead of 80/HTTP.
 func parseURL(arg string) (h Host, err error) {
 	var hostport string
 
