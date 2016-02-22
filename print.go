@@ -378,6 +378,9 @@ func printChainPaths(chains [][]*x509.Certificate) {
 	var cert_type string
 
 	for i, path := range chains {
+		if i > 0 {
+			printNewline()
+		}
 		printStderr("Path %d:\n", i)
 
 		for n, cert := range path {
@@ -388,91 +391,16 @@ func printChainPaths(chains [][]*x509.Certificate) {
 			} else {
 				cert_type = "INTR"
 			}
-			// dn := DistinguishedNameToString(cert.Subject)
-			// dn := getDN(cert.Subject.Names)
-			// dn := cert.Subject.ToRDNSequence()
-			dn := GetNameString(cert.Subject.Names)
+			dn := NamesToDN(cert.Subject.Names)
 			printStderr("  %d.  %-6s %s\n", n, cert_type, dn)
 		}
 	}
 }
 
-// Taken from github.com/mozkeeler/sunlight
-func maybeAppendFieldToBuffer(buffer *bytes.Buffer, field []string, prefix string) {
-	if len(field) > 0 && len(field[0]) > 0 {
-		if buffer.Len() > 0 {
-			fmt.Fprint(buffer, ", ")
-		}
-		fmt.Fprint(buffer, prefix, field[0])
-	}
-}
-
-// Taken from github.com/mozkeeler/sunlight
-//
-// This is strange: x509.pkix.Name is defined as:
-// type Name struct {
-//   Country, Organization, OrganizationalUnit []string
-//   Locality, Province                        []string
-//   StreetAddress, PostalCode                 []string
-//   SerialNumber, CommonName                  string
-//
-//   Names []AttributeTypeAndValue
-// }
-// so in theory there could be multiple values for Country, Organization, etc.
-// (except for SerialNumber and CommonName, the former of which we're completely
-// ignoring anyway). We'll just be lazy and take the first of each.
-// Also, since our list of root CAs only uses Organization, OrganizationalUnit,
-// and CommonName, we'll only consider those.
-func DistinguishedNameToString(n pkix.Name) string {
-	buffer := bytes.NewBufferString("")
-	maybeAppendFieldToBuffer(buffer, n.Organization, "O=")
-	maybeAppendFieldToBuffer(buffer, n.OrganizationalUnit, "OU=")
-	maybeAppendFieldToBuffer(buffer, []string{n.CommonName}, "CN=")
-	return buffer.String()
-}
-
-// See: RFC 2253
-// https://www.ietf.org/rfc/rfc2253.txt
-// https://tools.ietf.org/html/rfc2253#section-2.3
-func getDN(names []pkix.AttributeTypeAndValue) string {
-	var buffer bytes.Buffer
-	// Reverse the order
-	// for i := len(names); i > 0; i-- {
-	for i, n := range names {
-		t := n.Type
-		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
-			switch t[3] {
-			case 3:
-				buffer.WriteString("CN")
-			case 6:
-				buffer.WriteString("C")
-			case 7:
-				buffer.WriteString("L")
-			case 8:
-				buffer.WriteString("ST")
-			case 9:
-				buffer.WriteString("STREET")
-			case 10:
-				buffer.WriteString("O")
-			case 11:
-				buffer.WriteString("OU")
-			}
-		}
-		buffer.WriteString("=")
-		val, _ := n.Value.(string)
-		buffer.WriteString(val)
-		if i < len(names)-1 {
-			buffer.WriteString(", ")
-		}
-	}
-	return buffer.String()
-}
-
-func GetNameString(names []pkix.AttributeTypeAndValue) string {
+func NamesToDN(names []pkix.AttributeTypeAndValue) string {
 	var b bytes.Buffer
 
 	for i, v := range names {
-		// b.WriteString("/")
 		b.WriteString(getTagForOid(v.Type))
 		b.WriteString("=")
 		b.WriteString(fmt.Sprint(v.Value))
