@@ -400,6 +400,12 @@ func printChainPaths(chains [][]*x509.Certificate) {
 	printNewline()
 }
 
+// Note: This doesn't produce a strict RFC-2253 DN.
+//
+// For that, you'd at least need to escape existing commas and omit the space
+// between objects.
+//
+// See: openssl x509 -subject -nameopt RFC2253 -noout -in /tmp/foo.pem
 func NamesToDN(names []pkix.AttributeTypeAndValue) string {
 	var b bytes.Buffer
 
